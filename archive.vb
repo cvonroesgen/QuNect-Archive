@@ -54,7 +54,9 @@ Public Class archive
 
 
     Private Sub archive_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        ServicePointManager.SecurityProtocol = ServicePointManager.SecurityProtocol Or System.Net.SecurityProtocolType.Tls12
         txtUsername.Text = GetSetting(AppName, "Credentials", "username")
+        cmbPassword.SelectedIndex = CInt(GetSetting(AppName, "Credentials", "passwordOrToken", "0"))
         txtPassword.Text = GetSetting(AppName, "Credentials", "password")
         txtServer.Text = GetSetting(AppName, "Credentials", "server", "www.quickbase.com")
         txtAppToken.Text = GetSetting(AppName, "Credentials", "apptoken", "b2fr52jcykx3tnbwj8s74b8ed55b")
@@ -70,13 +72,18 @@ Public Class archive
         If cmdLineArgs.Length > 1 Then
             If cmdLineArgs(1) = "auto" Then
                 automode = True
-                listTables()
+                Try
+                    listTables()
+                Catch ex As Exception
+
+                End Try
+
                 archive(False)
                 Me.Close()
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
-        Me.Text = "QuNect Archive 1.0.0.45"
+        Me.Text = "QuNect Archive 1.0.0.53"
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
@@ -88,7 +95,12 @@ Public Class archive
     End Sub
 
     Private Sub btnListTables_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnListTables.Click
-        listTables()
+        Try
+            listTables()
+        Catch ex As Exception
+            MsgBox(ex.Message, MsgBoxStyle.OkOnly, AppName)
+        End Try
+
     End Sub
     Private Sub listTables()
         Me.Cursor = Cursors.WaitCursor
@@ -98,19 +110,27 @@ Public Class archive
         connectionString &= ";driver={QuNect ODBC for QuickBase};"
         connectionString &= ";quickbaseserver=" & txtServer.Text
         connectionString &= ";APPTOKEN=" & txtAppToken.Text
+        If cmbPassword.SelectedIndex = 0 Then
+            cmbPassword.Focus()
+            Throw New System.Exception("Please indicate whether you are using a password or a user token.")
+        ElseIf cmbPassword.SelectedIndex = 1 Then
+            connectionString &= ";PWDISPASSWORD=1"
+        Else
+            connectionString &= ";PWDISPASSWORD=0"
+        End If
         Dim quNectConn As OdbcConnection = New OdbcConnection(connectionString)
         Try
             quNectConn.Open()
             Dim ver As String = quNectConn.ServerVersion
             If CInt(ver.Substring(2, 2)) < 12 Then
-                MsgBox("Please install the 2012 version or later of QuNect ODBC for QuickBase")
+                MsgBox("Please install the 2012 version or later of QuNect ODBC for QuickBase", MsgBoxStyle.OkOnly, AppName)
                 quNectConn.Dispose()
                 Me.Cursor = Cursors.Default
                 Exit Sub
             End If
         Catch excpt As Exception
             If Not automode Then
-                MsgBox("A license for QuNect ODBC for QuickBase is required to run QuNectArchive. " & excpt.Message())
+                MsgBox("A license for QuNect ODBC for QuickBase is required to run QuNectArchive. " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
             End If
             Me.Cursor = Cursors.Default
             Exit Sub
@@ -129,7 +149,7 @@ Public Class archive
             tableNodes = tableXML.SelectNodes("/*/databases/dbinfo")
         Catch ex As Exception
             If Not automode Then
-                MsgBox(ex.Message)
+                MsgBox(ex.Message, MsgBoxStyle.OkOnly, AppName)
             End If
         Finally
             Me.Cursor = Cursors.Default
@@ -281,7 +301,7 @@ Public Class archive
             btnArchive.Visible = True
             btnBytes.Visible = True
         Catch excpt As Exception
-            MsgBox("Could not get schema of " & appTable & " " & excpt.Message())
+            MsgBox("Could not get schema of " & appTable & " " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
         Finally
             Me.Cursor = Cursors.Default
         End Try
@@ -334,14 +354,14 @@ Public Class archive
         pleaseWait.Left = Me.Left + btnFields.Left
         If tvAppsTables.SelectedNode Is Nothing Then
             pleaseWait.Close()
-            MsgBox("Please choose a table for archiving.")
+            MsgBox("Please choose a table for archiving.", MsgBoxStyle.OkOnly, AppName)
             tvAppsTables.Focus()
             Me.Cursor = Cursors.Default
             Exit Sub
         End If
         If lstArchiveFields.Items.Count = 0 Then
             pleaseWait.Close()
-            MsgBox("Please choose at least one field for archiving.")
+            MsgBox("Please choose at least one field for archiving.", MsgBoxStyle.OkOnly, AppName)
             lstArchiveFields.Focus()
             Me.Cursor = Cursors.Default
             Exit Sub
@@ -349,7 +369,7 @@ Public Class archive
         Dim folderPath As String = txtBackupFolder.Text
         If folderPath = "" Then
             pleaseWait.Close()
-            MsgBox("Please choose a folder.")
+            MsgBox("Please choose a folder.", MsgBoxStyle.OkOnly, AppName)
             txtBackupFolder.Focus()
             Me.Cursor = Cursors.Default
             Exit Sub
@@ -357,7 +377,7 @@ Public Class archive
 
         If lstReports.SelectedIndex = -1 Then
             pleaseWait.Close()
-            MsgBox("Please choose a report.")
+            MsgBox("Please choose a report.", MsgBoxStyle.OkOnly, AppName)
             lstReports.Focus()
             Me.Cursor = Cursors.Default
             Exit Sub
@@ -406,7 +426,7 @@ Public Class archive
 
         If aliasNode Is Nothing Then
             If Not countBytesOnly Then
-                archivedbid = qdb.CreateTable(parentDBID, archiveTableName)
+                archivedbid = qdb.CreateTable(parentDBID, archiveTableName, "CSV archives")
             End If
         Else
             archivedbid = aliasNode.InnerText
@@ -456,12 +476,20 @@ Public Class archive
             If ckbDetectProxy.Checked Then
                 connectionString &= ";DETECTPROXY=1"
             End If
+            If cmbPassword.SelectedIndex = 0 Then
+                cmbPassword.Focus()
+                Throw New System.Exception("Please indicate whether you are using a password or a user token.")
+            ElseIf cmbPassword.SelectedIndex = 1 Then
+                connectionString &= ";PWDISPASSWORD=1"
+            Else
+                connectionString &= ";PWDISPASSWORD=0"
+            End If
             Dim quNectConnFIDs As OdbcConnection = New OdbcConnection(connectionString & ";usefids=1")
             Try
                 quNectConnFIDs.Open()
             Catch excpt As Exception
                 If Not automode Then
-                    MsgBox(excpt.Message())
+                    MsgBox(excpt.Message(), MsgBoxStyle.OkOnly, AppName)
                 End If
                 quNectConnFIDs.Dispose()
                 Me.Cursor = Cursors.Default
@@ -473,7 +501,7 @@ Public Class archive
                 quNectConn.Open()
             Catch excpt As Exception
                 If Not automode Then
-                    MsgBox(excpt.Message())
+                    MsgBox(excpt.Message(), MsgBoxStyle.OkOnly, AppName)
                 End If
                 quNectConnFIDs.Close()
                 quNectConnFIDs.Dispose()
@@ -485,7 +513,7 @@ Public Class archive
 
 
             If backupTable(dbName, dbid, quNectConn, quNectConnFIDs, ridNodeList) = DialogResult.Cancel Then
-                MsgBox("Could not backup table, canceling archive operation.")
+                MsgBox("Could not backup table, canceling archive operation.", MsgBoxStyle.OkOnly, AppName)
                 quNectConn.Close()
                 quNectConn.Dispose()
                 quNectConnFIDs.Close()
@@ -603,9 +631,9 @@ Public Class archive
         Me.Cursor = Cursors.Default
         pleaseWait.Close()
         If countBytesOnly Then
-            MsgBox("About " & bytesArchived & " bytes would be archived from " & ridNodeList.Count & " records.")
+            MsgBox("About " & bytesArchived & " bytes would be archived from " & ridNodeList.Count & " records.", MsgBoxStyle.OkOnly, AppName)
         Else
-            MsgBox("About " & bytesArchived & " bytes archived from " & ridNodeList.Count & " records.")
+            MsgBox("About " & bytesArchived & " bytes archived from " & ridNodeList.Count & " records.", MsgBoxStyle.OkOnly, AppName)
         End If
 
     End Sub
@@ -738,7 +766,7 @@ Public Class archive
         If Not tvAppsTables.SelectedNode Is Nothing And Not tvAppsTables.SelectedNode.Parent Is Nothing Then
             displayFields(tvAppsTables.SelectedNode.FullPath())
         Else
-            MsgBox("Please select a table first.")
+            MsgBox("Please select a table first.", MsgBoxStyle.OkOnly, AppName)
         End If
 
     End Sub
@@ -763,6 +791,14 @@ Public Class archive
             lstFieldsToKeep.Items.Add(lstArchiveFields.Items(0).ToString)
             lstArchiveFields.Items.RemoveAt(0)
         End While
+    End Sub
+    Private Sub cmbPassword_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbPassword.SelectedIndexChanged
+        SaveSetting(AppName, "Credentials", "passwordOrToken", cmbPassword.SelectedIndex)
+        If cmbPassword.SelectedIndex = 0 Then
+            txtPassword.Enabled = False
+        Else
+            txtPassword.Enabled = True
+        End If
     End Sub
 End Class
 
@@ -1130,6 +1166,7 @@ Public Class QuickBaseClient
         If adminOnly Then
             addParameter(xmlQDBRequest, "adminOnly", "1")
         End If
+        addParameter(xmlQDBRequest, "realmAppsOnly", "true")
         GetGrantedDBs = APIXMLPost("main", "API_GrantedDBs", xmlQDBRequest, useHTTPS)
     End Function
     Public Function GetDBInfo(ByVal dbid As String) As XmlDocument
@@ -1782,10 +1819,11 @@ exception:
         GetDBvar = xmlQDBRequest.DocumentElement.SelectSingleNode("/*/value").InnerText
     End Function
 
-    Public Function CreateTable(ByVal application_dbid As String, ByVal pnoun As String) As String
+    Public Function CreateTable(ByVal application_dbid As String, ByVal tname As String, ByVal pnoun As String) As String
         Dim xmlQDBRequest As XmlDocument
         xmlQDBRequest = InitXMLRequest()
         addParameter(xmlQDBRequest, "pnoun", pnoun)
+        addParameter(xmlQDBRequest, "tname", tname)
         xmlQDBRequest = APIXMLPost(application_dbid, "API_CreateTable", xmlQDBRequest, useHTTPS)
         CreateTable = xmlQDBRequest.DocumentElement.SelectSingleNode("/*/newdbid").InnerText
     End Function

@@ -25,7 +25,6 @@ Partial Class archive
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(archive))
         Me.txtUsername = New System.Windows.Forms.TextBox()
         Me.lblUsername = New System.Windows.Forms.Label()
-        Me.lblPassword = New System.Windows.Forms.Label()
         Me.txtPassword = New System.Windows.Forms.TextBox()
         Me.lblServer = New System.Windows.Forms.Label()
         Me.txtServer = New System.Windows.Forms.TextBox()
@@ -52,6 +51,7 @@ Partial Class archive
         Me.ckbDetectProxy = New System.Windows.Forms.CheckBox()
         Me.btnAddAllToArchiveList = New System.Windows.Forms.Button()
         Me.btnRemoveAllFromArchiveList = New System.Windows.Forms.Button()
+        Me.cmbPassword = New System.Windows.Forms.ComboBox()
         Me.SuspendLayout()
         '
         'txtUsername
@@ -70,27 +70,18 @@ Partial Class archive
         Me.lblUsername.TabIndex = 0
         Me.lblUsername.Text = "QuickBase Username"
         '
-        'lblPassword
-        '
-        Me.lblPassword.AutoSize = True
-        Me.lblPassword.Location = New System.Drawing.Point(160, 5)
-        Me.lblPassword.Name = "lblPassword"
-        Me.lblPassword.Size = New System.Drawing.Size(108, 13)
-        Me.lblPassword.TabIndex = 3
-        Me.lblPassword.Text = "QuickBase Password"
-        '
         'txtPassword
         '
         Me.txtPassword.Location = New System.Drawing.Point(157, 24)
         Me.txtPassword.Name = "txtPassword"
         Me.txtPassword.PasswordChar = Global.Microsoft.VisualBasic.ChrW(42)
-        Me.txtPassword.Size = New System.Drawing.Size(120, 20)
+        Me.txtPassword.Size = New System.Drawing.Size(139, 20)
         Me.txtPassword.TabIndex = 2
         '
         'lblServer
         '
         Me.lblServer.AutoSize = True
-        Me.lblServer.Location = New System.Drawing.Point(296, 5)
+        Me.lblServer.Location = New System.Drawing.Point(302, 5)
         Me.lblServer.Name = "lblServer"
         Me.lblServer.Size = New System.Drawing.Size(93, 13)
         Me.lblServer.TabIndex = 5
@@ -98,9 +89,9 @@ Partial Class archive
         '
         'txtServer
         '
-        Me.txtServer.Location = New System.Drawing.Point(293, 24)
+        Me.txtServer.Location = New System.Drawing.Point(305, 24)
         Me.txtServer.Name = "txtServer"
-        Me.txtServer.Size = New System.Drawing.Size(237, 20)
+        Me.txtServer.Size = New System.Drawing.Size(225, 20)
         Me.txtServer.TabIndex = 3
         '
         'lblAppToken
@@ -310,11 +301,22 @@ Partial Class archive
         Me.btnRemoveAllFromArchiveList.UseVisualStyleBackColor = True
         Me.btnRemoveAllFromArchiveList.Visible = False
         '
+        'cmbPassword
+        '
+        Me.cmbPassword.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cmbPassword.FormattingEnabled = True
+        Me.cmbPassword.Items.AddRange(New Object() {"Please choose...", "QuickBase Password", "QuickBase User Token"})
+        Me.cmbPassword.Location = New System.Drawing.Point(157, 2)
+        Me.cmbPassword.Name = "cmbPassword"
+        Me.cmbPassword.Size = New System.Drawing.Size(141, 21)
+        Me.cmbPassword.TabIndex = 77
+        '
         'archive
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(842, 742)
+        Me.Controls.Add(Me.cmbPassword)
         Me.Controls.Add(Me.btnRemoveAllFromArchiveList)
         Me.Controls.Add(Me.btnAddAllToArchiveList)
         Me.Controls.Add(Me.ckbDetectProxy)
@@ -340,7 +342,6 @@ Partial Class archive
         Me.Controls.Add(Me.txtAppToken)
         Me.Controls.Add(Me.lblServer)
         Me.Controls.Add(Me.txtServer)
-        Me.Controls.Add(Me.lblPassword)
         Me.Controls.Add(Me.txtPassword)
         Me.Controls.Add(Me.lblUsername)
         Me.Controls.Add(Me.txtUsername)
@@ -353,7 +354,6 @@ Partial Class archive
     End Sub
     Friend WithEvents txtUsername As System.Windows.Forms.TextBox
     Friend WithEvents lblUsername As System.Windows.Forms.Label
-    Friend WithEvents lblPassword As System.Windows.Forms.Label
     Friend WithEvents txtPassword As System.Windows.Forms.TextBox
     Friend WithEvents lblServer As System.Windows.Forms.Label
     Friend WithEvents txtServer As System.Windows.Forms.TextBox
@@ -380,5 +380,5 @@ Partial Class archive
     Friend WithEvents ckbDetectProxy As System.Windows.Forms.CheckBox
     Friend WithEvents btnAddAllToArchiveList As System.Windows.Forms.Button
     Friend WithEvents btnRemoveAllFromArchiveList As System.Windows.Forms.Button
-
+    Friend WithEvents cmbPassword As ComboBox
 End Class

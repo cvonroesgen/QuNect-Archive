@@ -11,7 +11,7 @@
     <RootNamespace>QuNectArchive</RootNamespace>
     <AssemblyName>QuNectArchive</AssemblyName>
     <MyType>WindowsForms</MyType>
-    <ManifestCertificateThumbprint>BCEEF3CBB31819CCF1F35E0177F815C2E262150E</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>10501FD56F3DEA5577ECABBFEF28D8E9C79574DB</ManifestCertificateThumbprint>
     <ManifestKeyFile>
     </ManifestKeyFile>
     <GenerateManifests>true</GenerateManifests>
@@ -33,14 +33,14 @@
     <UpdatePeriodically>false</UpdatePeriodically>
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
-    <InstallUrl>http://www.qunect.com/download/QuNectArchive/</InstallUrl>
+    <InstallUrl>https://qunect.com/download/QuNectArchive/</InstallUrl>
     <SupportUrl>http://www.qunect.com</SupportUrl>
     <ErrorReportUrl>http://www.qunect.com</ErrorReportUrl>
     <ProductName>QuNect Archive</ProductName>
     <PublisherName>QuNect</PublisherName>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>46</ApplicationRevision>
+    <ApplicationRevision>53</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -65,9 +65,6 @@
     <DocumentationFile>QuNectArchive.xml</DocumentationFile>
     <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022,42353,42354,42355</NoWarn>
     <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup>
-    <ApplicationManifest>My Project\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestTimestampUrl>http://timestamp.digicert.com</ManifestTimestampUrl>
@@ -139,8 +136,9 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
-    <None Include="My Project\app.manifest" />
+    <None Include="app.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="My Project\Application.myapp">
       <Generator>MyApplicationCodeGenerator</Generator>
       <LastGenOutput>Application.Designer.vb</LastGenOutput>
