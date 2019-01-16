@@ -83,7 +83,7 @@ Public Class archive
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
-        Me.Text = "QuNect Archive 1.0.0.53"
+        Me.Text = "QuNect Archive 1.0.0.54"
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged

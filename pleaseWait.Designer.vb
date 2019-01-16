@@ -22,6 +22,7 @@ Partial Class pleaseWait
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
+        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(pleaseWait))
         Me.pb = New System.Windows.Forms.ProgressBar()
         Me.SuspendLayout()
         '
@@ -38,6 +39,7 @@ Partial Class pleaseWait
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(367, 88)
         Me.Controls.Add(Me.pb)
+        Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
         Me.Name = "pleaseWait"
         Me.Text = "Please wait"
         Me.ResumeLayout(False)
