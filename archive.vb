@@ -39,17 +39,7 @@ Public Class archive
     Private Const recordsPerArchive = 100
 
     Private Sub archive_Disposed(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Disposed
-        If lstArchiveFields.Visible = True Then
-            Dim i As Integer
-            Dim dbids As String = ""
-            Dim semicolon As String = ""
-            For i = 0 To lstArchiveFields.Items.Count - 1
-                dbids &= semicolon & lstArchiveFields.Items(i).Substring(lstArchiveFields.Items(i).LastIndexOf(" ") + 1)
-                semicolon = ";"
-            Next
 
-            SaveSetting(AppName, "backup", "dbids", dbids)
-        End If
     End Sub
 
 
@@ -83,7 +73,7 @@ Public Class archive
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
-        Me.Text = "QuNect Archive 1.0.0.54"
+        Me.Text = "QuNect Archive 1.0.0.55"
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
@@ -157,25 +147,13 @@ Public Class archive
         If tableNodes Is Nothing Then
             Exit Sub
         End If
-        Dim dbids As String = GetSetting(AppName, "backup", "dbids")
-        Dim dbidArray As New ArrayList
-        dbidArray.AddRange(dbids.Split(";"c))
-        Dim i As Integer
-        Dim dbidCollection As New Collection
-        For i = 0 To dbidArray.Count - 1
-            Try
-                dbidCollection.Add(dbidArray(i), dbidArray(i))
-            Catch excpt As Exception
-                'ignore dupes
-            End Try
-        Next
-
         tvAppsTables.BeginUpdate()
         tvAppsTables.Nodes.Clear()
         Dim dbName As String
         Dim applicationName As String = ""
         Dim prevAppName As String = ""
         Dim dbid As String
+        Dim i As Integer
         For i = 0 To tableNodes.Count - 1
             dbName = tableNodes(i).SelectSingleNode("dbname").InnerText
             applicationName = dbName.Split(":")(0)
@@ -192,8 +170,21 @@ Public Class archive
             tvAppsTables.Nodes(tvAppsTables.Nodes.Count - 1).Nodes.Add(tableName & " " & dbid)
         Next
         tvAppsTables.EndUpdate()
+        Dim dbidToArchive As String = GetSetting(AppName, "archive", "dbid")
+        If dbidToArchive <> "" Then
+            Dim tvAppNode As TreeNode
+            For Each tvAppNode In tvAppsTables.Nodes
+                Dim tvTableNode As TreeNode
+                For Each tvTableNode In tvAppNode.Nodes
+                    If tvTableNode.Text.EndsWith(" " & dbidToArchive) Then
+                        tvAppsTables.SelectedNode = tvTableNode
+                    End If
+                Next
+            Next
+            displayFields(tvAppsTables.SelectedNode.Text)
+        End If
         lstArchiveFields.Visible = True
-        Me.Cursor = Cursors.Default
+            Me.Cursor = Cursors.Default
     End Sub
 
     Private Sub txtServer_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtServer.TextChanged
@@ -279,19 +270,43 @@ Public Class archive
 
 
             lstArchiveFields.Items.Clear()
-            For i = 0 To fields.Count - 1
-                Dim label As String = fields(i).SelectSingleNode("label").InnerText()
-                If configHash.ContainsKey(label) Then
-                    Continue For
-                End If
-                lstArchiveFields.Items.Add(label)
-            Next
-            lstFieldsToKeep.Items.Clear()
-            For Each label As DictionaryEntry In configHash
-                If fieldLabelsToFIDs.ContainsKey(label.Key) Then
-                    lstFieldsToKeep.Items.Add(label.Key)
-                End If
-            Next
+            Dim fidsToArchive As String = GetSetting(AppName, "archive", "fids")
+            Dim fids As String() = fidsToArchive.Split(".")
+            If fids.GetLength(0) > 0 Then
+                Dim labelsToArchive As New Hashtable()
+                For i = 0 To fids.Length - 1
+                    Dim fid As String = fids(i)
+                    Dim fieldNode As XmlNode = schema.SelectSingleNode("/*/table/fields/field[@id='" & fid & "']")
+                    If fieldNode Is Nothing Then
+                        Continue For
+                    End If
+                    Dim label As String = fieldNode.SelectSingleNode("label").InnerText
+                    lstArchiveFields.Items.Add(label)
+                    labelsToArchive.Add(label, label)
+                Next
+                lstFieldsToKeep.Items.Clear()
+                For i = 0 To fields.Count - 1
+                    Dim label As String = fields(i).SelectSingleNode("label").InnerText()
+                    If labelsToArchive.ContainsKey(label) Then
+                        Continue For
+                    End If
+                    lstFieldsToKeep.Items.Add(label)
+                Next
+            Else
+                For i = 0 To fields.Count - 1
+                    Dim label As String = fields(i).SelectSingleNode("label").InnerText()
+                    If configHash.ContainsKey(label) Then
+                        Continue For
+                    End If
+                    lstArchiveFields.Items.Add(label)
+                Next
+                lstFieldsToKeep.Items.Clear()
+                For Each label As DictionaryEntry In configHash
+                    If fieldLabelsToFIDs.ContainsKey(label.Key) Then
+                        lstFieldsToKeep.Items.Add(label.Key)
+                    End If
+                Next
+            End If
             btnAddToArchiveList.Visible = True
             btnRemoveFromArchiveList.Visible = True
             btnAddAllToArchiveList.Visible = True
