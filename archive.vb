@@ -73,7 +73,7 @@ Public Class archive
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
-        Me.Text = "QuNect Archive 1.0.0.55"
+        Me.Text = "QuNect Archive 1.0.0.56"
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
@@ -239,7 +239,7 @@ Public Class archive
                     configHash.Add(configs(i), configs(i))
                 Next
             End If
-
+            Dim qid As String = GetSetting(AppName, "archive", "qid")
             Dim reports As XmlNodeList = schema.SelectNodes("/*/table/queries/query[qytype='table']")
             lstReports.Items.Clear()
             reportNameToQid.Clear()
@@ -251,8 +251,12 @@ Public Class archive
 
                 Dim reportName As String = reportNameNode.InnerText()
                 Try
-                    lstReports.Items.Add(reportName)
-                    reportNameToQid.Add(reportName, reports(i).SelectSingleNode("@id").InnerText())
+                    Dim lastListBoxItem As Integer = lstReports.Items.Add(reportName)
+                    Dim thisQid As String = reports(i).SelectSingleNode("@id").InnerText()
+                    reportNameToQid.Add(reportName, thisQid)
+                    If thisQid = qid Then
+                        lstReports.SelectedIndex = lastListBoxItem
+                    End If
                 Catch excpt As Exception
                     Continue For
                 End Try
