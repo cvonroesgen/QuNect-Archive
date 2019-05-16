@@ -73,7 +73,7 @@ Public Class archive
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
-        Me.Text = "QuNect Archive 1.0.0.56"
+        Me.Text = "QuNect Archive 1.0.0.57"
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
@@ -93,6 +93,10 @@ Public Class archive
 
     End Sub
     Private Sub listTables()
+        If txtPassword.Text.Contains(";") Then
+            Throw New System.Exception("Although Quick Base allows semicolons in passwords the ODBC standard does not permit semicolons." & vbCrLf & "Please change your Quick Base password to eliminate semicolons or use a Quick Base user token instead of a password.")
+        End If
+
         Me.Cursor = Cursors.WaitCursor
         Dim connectionString As String
         connectionString = "uid=" & txtUsername.Text
@@ -184,7 +188,7 @@ Public Class archive
             displayFields(tvAppsTables.SelectedNode.Text)
         End If
         lstArchiveFields.Visible = True
-            Me.Cursor = Cursors.Default
+        Me.Cursor = Cursors.Default
     End Sub
 
     Private Sub txtServer_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtServer.TextChanged
