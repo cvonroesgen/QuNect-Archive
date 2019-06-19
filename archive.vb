@@ -73,7 +73,7 @@ Public Class archive
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
-        Me.Text = "QuNect Archive 1.0.0.57"
+        Me.Text = "QuNect Archive 1.0.0.58"
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
@@ -270,7 +270,12 @@ Public Class archive
             fieldLabelsToFIDs.Clear()
             Try
                 For i = 0 To fields.Count - 1
-                    fieldLabelsToFIDs.Add(fields(i).SelectSingleNode("label").InnerText, fields(i).SelectSingleNode("@id").InnerText)
+                    Dim label As String = fields(i).SelectSingleNode("label").InnerText
+                    Dim parentFieldIDNode As XmlNode = fields(i).SelectSingleNode("parentFieldID")
+                    If parentFieldIDNode IsNot Nothing Then
+                        label = schema.SelectSingleNode("/*/table/fields/field[@id='" & parentFieldIDNode.InnerText & "']/label").InnerText & ": " & label
+                    End If
+                    fieldLabelsToFIDs.Add(label, fields(i).SelectSingleNode("@id").InnerText)
                 Next
             Catch labelDupe As Exception
                 Throw New ArgumentException("Two fields with the same name: '" & fields(i).SelectSingleNode("label").InnerText & "'")
