@@ -73,7 +73,7 @@ Public Class archive
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
-        Me.Text = "QuNect Archive 1.0.0.58"
+        Me.Text = "QuNect Archive 1.0.0.59"
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
@@ -270,15 +270,11 @@ Public Class archive
             fieldLabelsToFIDs.Clear()
             Try
                 For i = 0 To fields.Count - 1
-                    Dim label As String = fields(i).SelectSingleNode("label").InnerText
-                    Dim parentFieldIDNode As XmlNode = fields(i).SelectSingleNode("parentFieldID")
-                    If parentFieldIDNode IsNot Nothing Then
-                        label = schema.SelectSingleNode("/*/table/fields/field[@id='" & parentFieldIDNode.InnerText & "']/label").InnerText & ": " & label
-                    End If
+                    Dim label As String = getFieldLabelFromNode(fields(i))
                     fieldLabelsToFIDs.Add(label, fields(i).SelectSingleNode("@id").InnerText)
                 Next
             Catch labelDupe As Exception
-                Throw New ArgumentException("Two fields with the same name: '" & fields(i).SelectSingleNode("label").InnerText & "'")
+                Throw New ArgumentException("Two fields with the same name: '" & getFieldLabelFromNode(fields(i)) & "'")
             End Try
 
 
@@ -293,13 +289,13 @@ Public Class archive
                     If fieldNode Is Nothing Then
                         Continue For
                     End If
-                    Dim label As String = fieldNode.SelectSingleNode("label").InnerText
+                    Dim label As String = getFieldLabelFromNode(fieldNode)
                     lstArchiveFields.Items.Add(label)
                     labelsToArchive.Add(label, label)
                 Next
                 lstFieldsToKeep.Items.Clear()
                 For i = 0 To fields.Count - 1
-                    Dim label As String = fields(i).SelectSingleNode("label").InnerText()
+                    Dim label As String = getFieldLabelFromNode(fields(i))
                     If labelsToArchive.ContainsKey(label) Then
                         Continue For
                     End If
@@ -307,7 +303,7 @@ Public Class archive
                 Next
             Else
                 For i = 0 To fields.Count - 1
-                    Dim label As String = fields(i).SelectSingleNode("label").InnerText()
+                    Dim label As String = getFieldLabelFromNode(fields(i))
                     If configHash.ContainsKey(label) Then
                         Continue For
                     End If
@@ -334,7 +330,13 @@ Public Class archive
             Me.Cursor = Cursors.Default
         End Try
     End Sub
-
+    Function getFieldLabelFromNode(fieldNode As XmlNode) As String
+        getFieldLabelFromNode = fieldNode.SelectSingleNode("label").InnerText
+        Dim parentFieldIDNode As XmlNode = fieldNode.SelectSingleNode("parentFieldID")
+        If parentFieldIDNode IsNot Nothing Then
+            getFieldLabelFromNode = schema.SelectSingleNode("/*/table/fields/field[@id='" & parentFieldIDNode.InnerText & "']/label").InnerText & ": " & getFieldLabelFromNode
+        End If
+    End Function
     Private Sub tvAppsTables_AfterSelect(ByVal sender As Object, ByVal e As System.Windows.Forms.TreeViewEventArgs) Handles tvAppsTables.AfterSelect
         If Not tvAppsTables.SelectedNode Is Nothing Then
             If tvAppsTables.SelectedNode.Parent Is Nothing Then
@@ -576,7 +578,7 @@ Public Class archive
 
 
             keyField = schema.SelectSingleNode("/*/table/fields/field[@id=" & keyfid & "]")
-            Dim keyFieldLabel As String = keyField.SelectSingleNode("label").InnerText
+            Dim keyFieldLabel As String = getFieldLabelFromNode(keyField)
             formula &= "var Text pagename = ""QuNectArchive.js"";" & vbCrLf
             formula &= "var Text cfg = ""key="" & urlencode([" & keyFieldLabel & "]) & ""&keyfid=" & keyfid & "&filefid=" & fileFID & "&reffid=" & refFID & "&apptoken=" & txtAppToken.Text & "&dbid="" & " & formulaDBID & " & ""&archivedbid=" & archivedbid & "&filerid="" & urlencode([QuNect Archive Reference]);" & vbCrLf
             formula &= "if([QuNect Archive Reference] = 0, """", " & vbCrLf
