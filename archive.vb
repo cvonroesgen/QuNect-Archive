@@ -73,7 +73,7 @@ Public Class archive
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
-        Me.Text = "QuNect Archive 1.0.0.60"
+        Me.Text = "QuNect Archive " & myBuildInfo.ProductVersion
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
@@ -185,9 +185,11 @@ Public Class archive
                     End If
                 Next
             Next
-            displayFields(tvAppsTables.SelectedNode.Text)
+            If tvAppsTables.SelectedNode IsNot Nothing Then
+                displayFields(tvAppsTables.SelectedNode.Text)
+            End If
         End If
-        lstArchiveFields.Visible = True
+            lstArchiveFields.Visible = True
         Me.Cursor = Cursors.Default
     End Sub
 
