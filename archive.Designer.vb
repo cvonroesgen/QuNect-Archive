@@ -151,6 +151,7 @@ Partial Class archive
         Me.lstArchiveFields.Location = New System.Drawing.Point(424, 467)
         Me.lstArchiveFields.Name = "lstArchiveFields"
         Me.lstArchiveFields.Size = New System.Drawing.Size(397, 251)
+        Me.lstArchiveFields.Sorted = True
         Me.lstArchiveFields.TabIndex = 12
         '
         'btnAddToArchiveList
@@ -214,6 +215,7 @@ Partial Class archive
         Me.lstFieldsToKeep.Location = New System.Drawing.Point(12, 467)
         Me.lstFieldsToKeep.Name = "lstFieldsToKeep"
         Me.lstFieldsToKeep.Size = New System.Drawing.Size(369, 251)
+        Me.lstFieldsToKeep.Sorted = True
         Me.lstFieldsToKeep.TabIndex = 22
         '
         'lblFieldsToKeep
@@ -240,6 +242,7 @@ Partial Class archive
         Me.lstReports.Location = New System.Drawing.Point(424, 154)
         Me.lstReports.Name = "lstReports"
         Me.lstReports.Size = New System.Drawing.Size(397, 277)
+        Me.lstReports.Sorted = True
         Me.lstReports.TabIndex = 25
         '
         'lblReports
