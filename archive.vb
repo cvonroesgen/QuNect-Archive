@@ -422,6 +422,7 @@ Public Class archive
         Dim archivedbid As String = ""
         Dim fileFID As String = ""
         Dim keyfid As String = "3"
+        schema = qdb.GetSchema(dbid)
         Dim keyField As XmlNode = schema.SelectSingleNode("/*/table/original/key_fid")
         If Not keyField Is Nothing Then
             keyfid = keyField.InnerText
