@@ -120,7 +120,7 @@ Partial Class archive
         '
         'btnListTables
         '
-        Me.btnListTables.Location = New System.Drawing.Point(305, 117)
+        Me.btnListTables.Location = New System.Drawing.Point(305, 118)
         Me.btnListTables.Name = "btnListTables"
         Me.btnListTables.Size = New System.Drawing.Size(76, 23)
         Me.btnListTables.TabIndex = 9
@@ -239,7 +239,7 @@ Partial Class archive
         'lstReports
         '
         Me.lstReports.FormattingEnabled = True
-        Me.lstReports.Location = New System.Drawing.Point(424, 154)
+        Me.lstReports.Location = New System.Drawing.Point(424, 147)
         Me.lstReports.Name = "lstReports"
         Me.lstReports.Size = New System.Drawing.Size(397, 277)
         Me.lstReports.Sorted = True
@@ -248,7 +248,7 @@ Partial Class archive
         'lblReports
         '
         Me.lblReports.AutoSize = True
-        Me.lblReports.Location = New System.Drawing.Point(626, 138)
+        Me.lblReports.Location = New System.Drawing.Point(626, 132)
         Me.lblReports.Name = "lblReports"
         Me.lblReports.Size = New System.Drawing.Size(195, 13)
         Me.lblReports.TabIndex = 26
@@ -256,7 +256,7 @@ Partial Class archive
         '
         'btnFields
         '
-        Me.btnFields.Location = New System.Drawing.Point(428, 116)
+        Me.btnFields.Location = New System.Drawing.Point(424, 118)
         Me.btnFields.Name = "btnFields"
         Me.btnFields.Size = New System.Drawing.Size(136, 23)
         Me.btnFields.TabIndex = 27
@@ -266,7 +266,7 @@ Partial Class archive
         '
         'btnBytes
         '
-        Me.btnBytes.Location = New System.Drawing.Point(426, 53)
+        Me.btnBytes.Location = New System.Drawing.Point(424, 53)
         Me.btnBytes.Name = "btnBytes"
         Me.btnBytes.Size = New System.Drawing.Size(394, 21)
         Me.btnBytes.TabIndex = 28

@@ -26,17 +26,25 @@ Imports System.Data.Odbc
 Imports System.Text.RegularExpressions
 
 Public Class archive
+    Private Class qdbVersion
+        Public year As Integer
+        Public major As Integer
+        Public minor As Integer
+    End Class
     Private qdb As QuickBaseClient
+    Private qdbVer As qdbVersion = New qdbVersion
     Private Const AppName = "QuNectArchive"
     Private Const QuNectODBCParentDBID = "bcks8a7y3"
     Private cmdLineArgs() As String
     Private automode As Boolean = False
     Private config As String 'dbid of the table to archive, fid of the field QuNect Archived, fids to keep, dbid of the archive table
     Private schema As XmlDocument
-    Private configHash As New Hashtable()
-    Private reportNameToQid As New Hashtable()
+    Private configHash As New Hashtable
+    Private reportNameToQid As New Hashtable
     Private fieldLabelsToFIDs As New Hashtable
-    Private Const recordsPerArchive = 100
+    Private fidsToFieldLabels As New Hashtable
+    Private Const recordsPerArchive = 90
+    Private dbidToAppName As New Dictionary(Of String, String)
 
     Private Sub archive_Disposed(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Disposed
 
@@ -92,106 +100,131 @@ Public Class archive
         End Try
 
     End Sub
-    Private Sub listTables()
+    Private Function buildConnectionString(appDBID As String) As String
         If txtPassword.Text.Contains(";") Then
             Throw New System.Exception("Although Quick Base allows semicolons in passwords the ODBC standard does not permit semicolons." & vbCrLf & "Please change your Quick Base password to eliminate semicolons or use a Quick Base user token instead of a password.")
+            Return ""
+        End If
+        buildConnectionString = "FIELDNAMECHARACTERS=all;uid=" & txtUsername.Text
+        buildConnectionString &= ";pwd=" & txtPassword.Text
+        buildConnectionString &= ";driver={QuNect ODBC for QuickBase};"
+        buildConnectionString &= ";quickbaseserver=" & txtServer.Text
+        If appDBID <> "" Then
+            buildConnectionString &= ";appid=" & appDBID
+            buildConnectionString &= ";appname=" & tvAppsTables.SelectedNode.Parent.Text
         End If
 
-        Me.Cursor = Cursors.WaitCursor
-        Dim connectionString As String
-        connectionString = "uid=" & txtUsername.Text
-        connectionString &= ";pwd=" & txtPassword.Text
-        connectionString &= ";driver={QuNect ODBC for QuickBase};"
-        connectionString &= ";quickbaseserver=" & txtServer.Text
-        connectionString &= ";APPTOKEN=" & txtAppToken.Text
+        If ckbDetectProxy.Checked Then
+            buildConnectionString &= ";DETECTPROXY=1"
+        End If
+
+
+
         If cmbPassword.SelectedIndex = 0 Then
             cmbPassword.Focus()
             Throw New System.Exception("Please indicate whether you are using a password or a user token.")
+            Return ""
         ElseIf cmbPassword.SelectedIndex = 1 Then
-            connectionString &= ";PWDISPASSWORD=1"
+            buildConnectionString &= ";PWDISPASSWORD=1"
+            buildConnectionString &= ";APPTOKEN=" & txtAppToken.Text
         Else
-            connectionString &= ";PWDISPASSWORD=0"
+            buildConnectionString &= ";PWDISPASSWORD=0"
         End If
-        Dim quNectConn As OdbcConnection = New OdbcConnection(connectionString)
-        Try
-            quNectConn.Open()
-            Dim ver As String = quNectConn.ServerVersion
-            If CInt(ver.Substring(2, 2)) < 12 Then
-                MsgBox("Please install the 2012 version or later of QuNect ODBC for QuickBase", MsgBoxStyle.OkOnly, AppName)
-                quNectConn.Dispose()
-                Me.Cursor = Cursors.Default
-                Exit Sub
-            End If
-        Catch excpt As Exception
-            If Not automode Then
-                MsgBox("A license for QuNect ODBC for QuickBase is required to run QuNectArchive. " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
-            End If
-            Me.Cursor = Cursors.Default
-            Exit Sub
-        Finally
+#If DEBUG Then
+        'buildConnectionString &= ";LOGSQL=1"
+#End If
 
-            quNectConn.Dispose()
-        End Try
-        Dim tableXML As XmlDocument
-        Dim tableNodes As XmlNodeList = Nothing
+    End Function
+    Sub listTablesFromGetSchema(tables As DataTable, appToDBID As Dictionary(Of String, String))
 
-        qdb.setServer(txtServer.Text, True)
-        qdb.Authenticate(txtUsername.Text, txtPassword.Text)
-        qdb.setAppToken(txtAppToken.Text)
-        Try
-            tableXML = qdb.GetGrantedDBs(True, True, False)
-            tableNodes = tableXML.SelectNodes("/*/databases/dbinfo")
-        Catch ex As Exception
-            If Not automode Then
-                MsgBox(ex.Message, MsgBoxStyle.OkOnly, AppName)
-            End If
-        Finally
-            Me.Cursor = Cursors.Default
-        End Try
-        If tableNodes Is Nothing Then
-            Exit Sub
-        End If
         tvAppsTables.BeginUpdate()
         tvAppsTables.Nodes.Clear()
+        tvAppsTables.ShowNodeToolTips = True
         Dim dbName As String
         Dim applicationName As String = ""
         Dim prevAppName As String = ""
         Dim dbid As String
-        Dim i As Integer
-        For i = 0 To tableNodes.Count - 1
-            dbName = tableNodes(i).SelectSingleNode("dbname").InnerText
-            applicationName = dbName.Split(":")(0)
-            dbid = tableNodes(i).SelectSingleNode("dbid").InnerText
+        pleaseWait.pb.Value = 0
+        pleaseWait.pb.Visible = True
+        pleaseWait.pb.Maximum = tables.Rows.Count
+        Dim getDBIDfromdbName As New Regex("([a-z0-9~]+)$")
+        Dim dbidCollection As New Collection
 
+        Dim i As Integer
+        dbidToAppName.Clear()
+        For i = 0 To tables.Rows.Count - 1
+            pleaseWait.pb.Value = i
+            Application.DoEvents()
+            dbName = tables.Rows(i)(2)
+            applicationName = tables.Rows(i)(0)
+            Dim dbidMatch As Match = getDBIDfromdbName.Match(dbName)
+            dbid = dbidMatch.Value
+            If Not dbidToAppName.ContainsKey(dbid) Then
+                dbidToAppName.Add(dbid, applicationName)
+            End If
             If applicationName <> prevAppName Then
-                tvAppsTables.Nodes.Add(applicationName)
+
+                Dim appNode As TreeNode = tvAppsTables.Nodes.Add(applicationName)
+                appNode.Tag = appToDBID(applicationName)
                 prevAppName = applicationName
             End If
             Dim tableName As String = dbName
-            If dbName.Length > applicationName.Length Then
-                tableName = dbName.Substring(applicationName.Length + 1)
-            End If
-            tvAppsTables.Nodes(tvAppsTables.Nodes.Count - 1).Nodes.Add(tableName & " " & dbid)
+
+            Dim tableNode As TreeNode = tvAppsTables.Nodes(tvAppsTables.Nodes.Count - 1).Nodes.Add(tableName)
+            tableNode.Tag = dbid
+
         Next
+
+        pleaseWait.pb.Visible = False
         tvAppsTables.EndUpdate()
-        Dim dbidToArchive As String = GetSetting(AppName, "archive", "dbid")
-        If dbidToArchive <> "" Then
-            Dim tvAppNode As TreeNode
-            For Each tvAppNode In tvAppsTables.Nodes
-                Dim tvTableNode As TreeNode
-                For Each tvTableNode In tvAppNode.Nodes
-                    If tvTableNode.Text.EndsWith(" " & dbidToArchive) Then
-                        tvAppsTables.SelectedNode = tvTableNode
-                    End If
-                Next
-            Next
-            If tvAppsTables.SelectedNode IsNot Nothing Then
-                displayFields(tvAppsTables.SelectedNode.Text)
-            End If
-        End If
-            lstArchiveFields.Visible = True
+        pleaseWait.pb.Value = 0
+
         Me.Cursor = Cursors.Default
     End Sub
+    Private Sub listTables()
+        Me.Cursor = Cursors.WaitCursor
+        tvAppsTables.Visible = True
+        Try
+            Dim connectionString As String = buildConnectionString("")
+            Dim quNectConn As OdbcConnection = New OdbcConnection(connectionString)
+            quNectConn.Open()
+            Dim ver As String = quNectConn.ServerVersion
+            Dim m As Match = Regex.Match(ver, "\d+\.(\d+)\.(\d+)\.(\d+)")
+            qdbVer.year = CInt(m.Groups(1).Value)
+            qdbVer.major = CInt(m.Groups(2).Value)
+            qdbVer.minor = CInt(m.Groups(3).Value)
+
+            If qdbVer.year < 17 Then
+                MsgBox("You are running the 20" & qdbVer.year & " version of QuNect ODBC for QuickBase. Please install the latest version from https://qunect.com/download/QuNect.exe", MsgBoxStyle.OkOnly, AppName)
+                quNectConn.Dispose()
+                Me.Cursor = Cursors.Default
+                Exit Sub
+            End If
+
+            Dim tableOfTables As DataTable = quNectConn.GetSchema("Tables")
+            Dim appToDBID As New Dictionary(Of String, String)
+            Using command As OdbcCommand = New OdbcCommand("SELECT * FROM apps", quNectConn)
+                Dim dr As OdbcDataReader = command.ExecuteReader()
+                While dr.Read
+                    appToDBID.Add(dr.GetString(0), dr.GetString(2))
+                End While
+            End Using
+            listTablesFromGetSchema(tableOfTables, appToDBID)
+            Me.Cursor = Cursors.Default
+            quNectConn.Close()
+            quNectConn.Dispose()
+        Catch excpt As Exception
+            Me.Cursor = Cursors.Default
+            If excpt.Message.Contains("Data source name not found") Then
+                MsgBox("Please install QuNect ODBC for QuickBase from http://qunect.com/download/QuNect.exe and try again.", MsgBoxStyle.OkOnly, AppName)
+            Else
+                MsgBox(excpt.Message, MsgBoxStyle.OkOnly, AppName)
+            End If
+            Exit Sub
+        End Try
+    End Sub
+
+
 
     Private Sub txtServer_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtServer.TextChanged
         SaveSetting(AppName, "Credentials", "server", txtServer.Text)
@@ -230,35 +263,53 @@ Public Class archive
         qdb.Authenticate(txtUsername.Text, txtPassword.Text)
         qdb.setAppToken(txtAppToken.Text)
         Try
+            Dim appDBID As String = tvAppsTables.SelectedNode.Parent.Tag
+            Dim tableToArchive As String = tvAppsTables.SelectedNode.Text
+            Dim m As Match = Regex.Match(tableToArchive, "^[^:]+: (.*) [a-kmnp-z2-9]+$")
+            tableToArchive = m.Groups(1).Value
+            Dim connectionString As String = buildConnectionString(appDBID)
+            Dim quNectConn As OdbcConnection = New OdbcConnection(connectionString)
+            quNectConn.Open()
             Dim i As Integer
             Dim dbid As String = appTable.Substring(appTable.LastIndexOf(" ") + 1)
-            schema = qdb.GetSchema(dbid)
-            Dim configNode As XmlNode = schema.SelectSingleNode("/*/table/variables/var[@name='QuNectArchive " + dbid + "']")
-            If configNode Is Nothing Then
-                configNode = schema.SelectSingleNode("/*/table/variables/var[@name='QuNectArchive']")
-            End If
+            Dim quNectCmd As OdbcCommand = Nothing
+            Dim dr As OdbcDataReader
+            Try
+                quNectCmd = New OdbcCommand("SELECT * FROM " & appDBID & "~vars WHERE Name = 'QuNectArchive%'", quNectConn)
+                dr = quNectCmd.ExecuteReader()
+            Catch excpt As Exception
+                If quNectCmd IsNot Nothing Then
+                    quNectCmd.Dispose()
+                End If
+                Exit Sub
+            End Try
             configHash.Clear()
-            If Not configNode Is Nothing Then
-                config = configNode.InnerText
+            If dr.HasRows Then
+                dr.Read()
+                config = dr.GetString(1)
                 Dim configs As String() = config.Split(vbCrLf)
                 For i = 0 To configs.Length - 1
                     configHash.Add(configs(i), configs(i))
                 Next
             End If
             Dim qid As String = GetSetting(AppName, "archive", "qid")
-            Dim reports As XmlNodeList = schema.SelectNodes("/*/table/queries/query[qytype='table']")
+            'need to focus in on one app
+            Dim tableOfTables As DataTable = quNectConn.GetSchema("Views")
             lstReports.Items.Clear()
             reportNameToQid.Clear()
-            For i = 0 To reports.Count - 1
-                Dim reportNameNode As XmlNode = reports(i).SelectSingleNode("qyname")
-                If reportNameNode Is Nothing Then
+            For i = 0 To tableOfTables.Rows.Count - 1
+                Application.DoEvents()
+                Dim reportName As String = tableOfTables.Rows(i)(2)
+                m = Regex.Match(reportName, "^([^:]+)")
+                Dim tableName As String = m.Groups(1).Value
+
+                If tableToArchive <> tableName Then
                     Continue For
                 End If
-
-                Dim reportName As String = reportNameNode.InnerText()
                 Try
                     Dim lastListBoxItem As Integer = lstReports.Items.Add(reportName)
-                    Dim thisQid As String = reports(i).SelectSingleNode("@id").InnerText()
+                    m = Regex.Match(reportName, "^[^~]+(\d+)$")
+                    Dim thisQid As String = m.Groups(1).Value
                     reportNameToQid.Add(reportName, thisQid)
                     If thisQid = qid Then
                         lstReports.SelectedIndex = lastListBoxItem
@@ -267,46 +318,67 @@ Public Class archive
                     Continue For
                 End Try
             Next
-            Dim fields As XmlNodeList = schema.SelectNodes("/*/table/fields/field[(append_only!=1 or @field_type='email') and not(mastag) and unique!=1 and required!=1 and  not(@role) and @base_type='text' and not(@field_type='userid' or @field_type='file')and not(@mode)]")
 
-            fieldLabelsToFIDs.Clear()
             Try
-                For i = 0 To fields.Count - 1
-                    Dim label As String = getFieldLabelFromNode(fields(i))
-                    fieldLabelsToFIDs.Add(label, fields(i).SelectSingleNode("@id").InnerText)
-                Next
+                fieldLabelsToFIDs.Clear()
+                fidsToFieldLabels.Clear()
+                If quNectCmd IsNot Nothing Then
+                    quNectCmd.Dispose()
+                End If
+                quNectConn.Close()
+                quNectConn = New OdbcConnection(connectionString)
+                quNectConn.Open()
+                '(append_only!=1 or @field_type='email') and not(mastag) and unique!=1 and required!=1 and  not(@role) and @base_type='text' and not(@field_type='userid' or @field_type='file')and not(@mode)]")
+                Dim sql As String = "SELECT label, fid FROM " & dbid & "~fields WHERE (append_only = 0 OR field_type='email') and isunique = 0 and required = 0 and base_type = 'text' and field_type NOT IN ('userid', 'file') And mastag = '' And role = '' And mode = ''"
+                'sql = "SELECT label, fid FROM " & dbid & "~fields WHERE mastag IS NULL And role Is NULL And mode Is NULL"
+
+                quNectCmd = quNectConn.CreateCommand()
+                quNectCmd.CommandText = sql
+                dr = quNectCmd.ExecuteReader()
+
+
+                While dr.Read()
+                    Dim label As String = dr.GetString(0)
+                    Dim fid As String = dr.GetString(1)
+                    fieldLabelsToFIDs.Add(label, fid)
+                    fidsToFieldLabels.Add(fid, label)
+                End While
             Catch labelDupe As Exception
-                Throw New ArgumentException("Two fields with the same name: '" & getFieldLabelFromNode(fields(i)) & "'")
+                If quNectCmd IsNot Nothing Then
+                    quNectCmd.Dispose()
+                End If
+                Throw New ArgumentException("Two fields With the same name: '" & dr.GetString(0) & "'")
             End Try
 
 
             lstArchiveFields.Items.Clear()
             Dim fidsToArchive As String = GetSetting(AppName, "archive", "fids")
             Dim fids As String() = fidsToArchive.Split(".")
+            Dim labelsToArchive As New Hashtable()
             If fids.GetLength(0) > 0 Then
-                Dim labelsToArchive As New Hashtable()
                 For i = 0 To fids.Length - 1
-                    Dim fid As String = fids(i)
-                    Dim fieldNode As XmlNode = schema.SelectSingleNode("/*/table/fields/field[@id='" & fid & "']")
-                    If fieldNode Is Nothing Then
+                    Dim label As String
+                    Try
+                        label = fidsToFieldLabels(fids(i))
+                        lstArchiveFields.Items.Add(label)
+                        labelsToArchive.Add(label, label)
+                    Catch excpt As Exception
                         Continue For
-                    End If
-                    Dim label As String = getFieldLabelFromNode(fieldNode)
-                    lstArchiveFields.Items.Add(label)
-                    labelsToArchive.Add(label, label)
+                    End Try
+
                 Next
                 lstFieldsToKeep.Items.Clear()
-                For i = 0 To fields.Count - 1
-                    Dim label As String = getFieldLabelFromNode(fields(i))
+                For Each field As DictionaryEntry In fieldLabelsToFIDs
+                    Dim label As String = field.Key
                     If labelsToArchive.ContainsKey(label) Then
                         Continue For
                     End If
                     lstFieldsToKeep.Items.Add(label)
                 Next
             Else
-                For i = 0 To fields.Count - 1
-                    Dim label As String = getFieldLabelFromNode(fields(i))
-                    If configHash.ContainsKey(label) Then
+                For Each field As DictionaryEntry In fieldLabelsToFIDs
+                    Dim label As String = field.Key
+                    If labelsToArchive.ContainsKey(label) Then
                         Continue For
                     End If
                     lstArchiveFields.Items.Add(label)
@@ -360,8 +432,8 @@ Public Class archive
 
     Private Sub tvAppsTables_DoubleClick(ByVal sender As Object, ByVal e As System.EventArgs) Handles tvAppsTables.DoubleClick
         If Not tvAppsTables.SelectedNode.Parent Is Nothing Then
-            displayFields(tvAppsTables.SelectedNode.FullPath())        
-        End If       
+            displayFields(tvAppsTables.SelectedNode.FullPath())
+        End If
     End Sub
 
     Private Sub backup_Resize(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Resize
@@ -417,16 +489,49 @@ Public Class archive
         Dim refFID As String = ""
         Dim dbid As String = ""
         Dim dbName As String = tvAppsTables.SelectedNode.FullPath().ToString()
-        Dim i As Integer        
+        Dim i As Integer
         dbid = dbName.Substring(dbName.LastIndexOf(" ") + 1)
         Dim archivedbid As String = ""
         Dim fileFID As String = ""
         Dim keyfid As String = "3"
+        Dim keyFieldLabel As String = ""
+
+        Dim connectionString As String = buildConnectionString("")
+        Dim quNectConn As OdbcConnection = New OdbcConnection(connectionString)
+        quNectConn.Open()
+        Dim quNectCmd As OdbcCommand = Nothing
+        Dim dr As OdbcDataReader
+        Try
+            quNectCmd = New OdbcCommand("SELECT * FROM " & dbid & "~fields", quNectConn)
+            dr = quNectCmd.ExecuteReader()
+        Catch excpt As Exception
+            If quNectCmd IsNot Nothing Then
+                quNectCmd.Dispose()
+            End If
+            Exit Sub
+        End Try
+
+        fieldLabelsToFIDs.Clear()
+        fidsToFieldLabels.Clear()
+        Try
+            While dr.Read()
+                Dim label As String = dr.GetString(0)
+                Dim fid As String = dr.GetString(2)
+                Dim iskey As Boolean = dr("iskey")
+                fieldLabelsToFIDs.Add(label, fid)
+                fidsToFieldLabels.Add(fid, label)
+                If iskey Then
+                    keyfid = fid
+                    keyFieldLabel = label
+                End If
+            End While
+        Catch labelDupe As Exception
+            Throw New ArgumentException("Two fields with the same name: '" & dr.GetString(0) & "'")
+        End Try
+
+
         schema = qdb.GetSchema(dbid)
-        Dim keyField As XmlNode = schema.SelectSingleNode("/*/table/original/key_fid")
-        If Not keyField Is Nothing Then
-            keyfid = keyField.InnerText
-        End If
+
         'now we have to run the report to get the csv records and put them into a file attachement field while blanking out the text fields and setting the reference field
         'first we'll get the rids from the report then we'll get records in 100 chunks and create records
         'let's get the clist first
@@ -441,9 +546,8 @@ Public Class archive
         'now we need to get all the rids from the report
         Dim qid As String = reportNameToQid(lstReports.Items(lstReports.SelectedIndex))
 
-        Dim query As String = ""
         Dim formulaDBID As String = "dbid()"
-        Dim parentDBID As String = schema.SelectSingleNode("/*/table/original/app_id").InnerText
+        Dim parentDBID As String = tvAppsTables.SelectedNode.Parent.Tag
 
         'here we need to check to see if the backup table exists
         'we need to create an archive table
@@ -454,69 +558,84 @@ Public Class archive
         archiveTableAlias = "_DBID_" & archiveTableAlias
         'first need to check to see if the archive table already exists
 
-        Dim parentSchema As XmlDocument = qdb.GetSchema(parentDBID)
-        Dim aliasNode As XmlNode = parentSchema.SelectSingleNode("/*/table/chdbids/chdbid[@name='" & archiveTableAlias.ToLower() & "']")
-
-        If aliasNode Is Nothing Then
-            If Not countBytesOnly Then
-                archivedbid = qdb.CreateTable(parentDBID, archiveTableName, "CSV archives")
+        Try
+            If quNectCmd IsNot Nothing Then
+                quNectCmd.Dispose()
             End If
+            quNectCmd = New OdbcCommand("SELECT * FROM " & parentDBID & "~aliases where Name = '" & archiveTableAlias.ToLower() & "'", quNectConn)
+            dr = quNectCmd.ExecuteReader()
+        Catch excpt As Exception
+            If quNectCmd IsNot Nothing Then
+                quNectCmd.Dispose()
+            End If
+            Exit Sub
+        End Try
+
+        If dr.HasRows Then
+            dr.Read()
+            archivedbid = dr("Value")
         Else
-            archivedbid = aliasNode.InnerText
-        End If
-
-        Dim sourceNode As XmlNode = parentSchema.SelectSingleNode("/*/table/chdbids/chdbid[. = '" & dbid & "']/@name")
-        If Not sourceNode Is Nothing Then
-            formulaDBID = "[" & sourceNode.InnerText & "]"
-        End If
-        'then we need a reference field in the table to be archived that points back to this new table
-        Dim refNode As XmlNode = schema.SelectSingleNode("/*/table/fields/field[mastag='" & archiveTableAlias & "']")
-        If refNode Is Nothing Then
             If Not countBytesOnly Then
-                refFID = qdb.AddField(dbid, "QuNect Archive Reference", "float", False)
-                qdb.SetFieldProperties(dbid, refFID, "mastag", archiveTableAlias, "foreignkey", "1")
+                Try
+                    If quNectCmd IsNot Nothing Then
+                        quNectCmd.Dispose()
+                    End If
+                    quNectCmd = New OdbcCommand("CREATE TABLE " & archiveTableName & " " & parentDBID & "(""CSV Archive"" longVarBinary)", quNectConn)
+                    quNectCmd.ExecuteNonQuery()
+                    quNectCmd = New OdbcCommand("SELECT @@newdbid", quNectConn)
+                    dr = quNectCmd.ExecuteReader()
+                    dr.Read()
+                    archivedbid = dr.GetString(0)
+                Catch excpt As Exception
+                    If quNectCmd IsNot Nothing Then
+                        quNectCmd.Dispose()
+                    End If
+                    Exit Sub
+                End Try
             End If
-        Else
-            refFID = refNode.SelectSingleNode("@id").InnerText
-        End If
-        'here I should probably add a criteria to prevent archiving of records that were already archived
-        If refFID <> "" Then
-            query = "{'" & refFID & "'.EX.''}"
         End If
 
-        Dim criteriaNode As XmlNode = schema.SelectSingleNode("/*/table/queries/query[@id=" & qid & "]/qycrit")
-        If Not criteriaNode Is Nothing Then
-            If query <> "" Then
-                query &= "AND"
+        refFID = getRefFID(dbid, archiveTableAlias)
+        If refFID = "" Then
+            If Not countBytesOnly Then
+                If quNectCmd IsNot Nothing Then
+                    quNectCmd.Dispose()
+                End If
+                quNectCmd = New OdbcCommand("ALTER TABLE " & dbid & " ADD CONSTRAINT doesNotMatter FOREIGN KEY (""QuNect Archive Reference"") REFERENCES " & archivedbid & " (fid" & keyfid & ") ", quNectConn)
+                quNectCmd.ExecuteNonQuery()
+                'Now we need to get the brand new reffid
+                refFID = getRefFID(dbid, archiveTableAlias)
             End If
-            query &= criteriaNode.InnerText
         End If
-        Dim clist As String = "3." & keyfid
-        If keyfid = "3" Then
-            clist = "3"
-        End If
-        Dim xmlRids As XmlDocument = qdb.DoQuery(dbid, query, clist, "3", "")
-        Dim ridNodeList As XmlNodeList = xmlRids.SelectNodes("/*/table/records/record")
+
+        Try
+            If quNectCmd IsNot Nothing Then
+                quNectCmd.Dispose()
+            End If
+            'here I should probably add a criteria to prevent archiving of records that were already archived
+            Dim sql As String = "SELECT fid3 FROM ""All Columns Please " & lstReports.Items(lstReports.SelectedIndex) & """ WHERE ""QuNect Archive Reference"" IS NULL"
+            quNectCmd = New OdbcCommand(sql, quNectConn)
+            dr = quNectCmd.ExecuteReader()
+        Catch excpt As Exception
+            If quNectCmd IsNot Nothing Then
+                quNectCmd.Dispose()
+            End If
+            Exit Sub
+        End Try
+
+        Dim ridList As New List(Of Integer)()
+
+        While dr.Read()
+            ridList.Add(dr(0))
+        End While
+
+
+
 
         If Not countBytesOnly Then
             Me.Cursor = Cursors.WaitCursor
-            Dim connectionString As String
-            connectionString = "FIELDNAMECHARACTERS=all;uid=" & txtUsername.Text
-            connectionString &= ";pwd=" & txtPassword.Text
-            connectionString &= ";driver={QuNect ODBC for QuickBase};"
-            connectionString &= ";quickbaseserver=" & txtServer.Text
-            connectionString &= ";APPTOKEN=" & txtAppToken.Text
-            If ckbDetectProxy.Checked Then
-                connectionString &= ";DETECTPROXY=1"
-            End If
-            If cmbPassword.SelectedIndex = 0 Then
-                cmbPassword.Focus()
-                Throw New System.Exception("Please indicate whether you are using a password or a user token.")
-            ElseIf cmbPassword.SelectedIndex = 1 Then
-                connectionString &= ";PWDISPASSWORD=1"
-            Else
-                connectionString &= ";PWDISPASSWORD=0"
-            End If
+            connectionString = buildConnectionString("")
+
             Dim quNectConnFIDs As OdbcConnection = New OdbcConnection(connectionString & ";usefids=1")
             Try
                 quNectConnFIDs.Open()
@@ -529,7 +648,7 @@ Public Class archive
                 pleaseWait.Close()
                 Exit Sub
             End Try
-            Dim quNectConn As OdbcConnection = New OdbcConnection(connectionString)
+            quNectConn = New OdbcConnection(connectionString)
             Try
                 quNectConn.Open()
             Catch excpt As Exception
@@ -545,7 +664,7 @@ Public Class archive
             End Try
 
 
-            If backupTable(dbName, dbid, quNectConn, quNectConnFIDs, ridNodeList) = DialogResult.Cancel Then
+            If backupTable(dbName, dbid, quNectConn, quNectConnFIDs, ridList) = DialogResult.Cancel Then
                 MsgBox("Could not backup table, canceling archive operation.", MsgBoxStyle.OkOnly, AppName)
                 quNectConn.Close()
                 quNectConn.Dispose()
@@ -555,8 +674,6 @@ Public Class archive
                 pleaseWait.Close()
                 Exit Sub
             End If
-            quNectConn.Close()
-            quNectConn.Dispose()
             quNectConnFIDs.Close()
             quNectConnFIDs.Dispose()
 
@@ -579,9 +696,6 @@ Public Class archive
             End If
             Dim formula As String = ""
 
-
-            keyField = schema.SelectSingleNode("/*/table/fields/field[@id=" & keyfid & "]")
-            Dim keyFieldLabel As String = getFieldLabelFromNode(keyField)
             formula &= "var Text pagename = ""QuNectArchive.js"";" & vbCrLf
             formula &= "var Text cfg = ""key="" & urlencode([" & keyFieldLabel & "]) & ""&keyfid=" & keyfid & "&filefid=" & fileFID & "&reffid=" & refFID & "&apptoken=" & txtAppToken.Text & "&dbid="" & " & formulaDBID & " & ""&archivedbid=" & archivedbid & "&filerid="" & urlencode([QuNect Archive Reference]);" & vbCrLf
             formula &= "if([QuNect Archive Reference] = 0, """", " & vbCrLf
@@ -605,12 +719,12 @@ Public Class archive
         Dim numArchived As Integer = 0
         pleaseWait.pb.Value = 0
         Application.DoEvents()
-        pleaseWait.pb.Maximum = ridNodeList.Count
+        pleaseWait.pb.Maximum = ridList.Count
         Dim xpathIndex As String = "2"
         If keyfid = "3" Then
             xpathIndex = "1"
         End If
-        For i = 0 To ridNodeList.Count - 1 Step recordsPerArchive
+        For i = 0 To ridList.Count - 1 Step recordsPerArchive
             If i + recordsPerArchive > pleaseWait.pb.Maximum Then
                 pleaseWait.pb.Value = pleaseWait.pb.Maximum
             Else
@@ -619,17 +733,22 @@ Public Class archive
             Application.DoEvents()
             Dim lowRid As Integer = i
             Dim highRid As Integer = i + recordsPerArchive - 1
-            If ridNodeList.Count - 1 < i + recordsPerArchive - 1 Then
-                highRid = ridNodeList.Count - 1
+            If ridList.Count - 1 < i + recordsPerArchive - 1 Then
+                highRid = ridList.Count - 1
             End If
             Dim n As Integer
-            Dim oRRids As String = ""
-            Dim strOr As String = ""
+            Dim inRids As String = " WHERE fid3 IN ("
+            Dim comma As String = ""
+            Dim orRids As String = ""
+            Dim orOp As String = ""
             For n = i To highRid
-                oRRids &= strOr & ridNodeList(n).SelectSingleNode("f").InnerText
-                strOr = " OR "
+                inRids &= comma & ridList(n)
+                orRids &= orOp & ridList(n)
+                comma = ","
+                orOp = " OR "
+                numArchived += 1
             Next
-
+            inRids &= ")"
 
             Dim strCSV As String = String.Join(",", clistArray) & vbCrLf
             Dim genResultsTable As String = qdb.GenResultsTable(dbid, "{'3'.EX.'" & oRRids & "'}", String.Join(".", clistArray), "3", "sortorder-A.csv")
@@ -643,34 +762,66 @@ Public Class archive
                 Dim swTemp As New System.IO.StreamWriter(sTempFileName)
                 swTemp.Write(strCSV)
                 swTemp.Close()
-                Dim fsTemp As New System.IO.FileStream(sTempFileName, IO.FileMode.Open, FileAccess.Read)
-                Dim archiveRID As String = qdb.AddRecord(archivedbid, "", fileFID, fsTemp)
-                fsTemp.Close()
+
+                'need to create a record in the archive
+                Dim importSQL As String = "INSERT INTO " & archivedbid & " (fid" & fileFID & ") VALUES ('" & sTempFileName & "')"
+                quNectCmd = New OdbcCommand(importSQL, quNectConn)
+                quNectCmd.ExecuteNonQuery()
                 System.IO.File.Delete(sTempFileName)
+                quNectCmd = New OdbcCommand("SELECT @@IDENTITY", quNectConn)
+                dr = quNectCmd.ExecuteReader()
+                dr.Read()
+                Dim newArchiveRID As String = dr.GetString(0)
                 'now we need to hollow out the records and update the reference field value
-                Dim j As Integer
-                strCSV = ""
-                Dim k As Integer
-                For j = lowRid To highRid
-                    For k = 0 To clistArray.Length - 2
-                        strCSV &= """"","
-                    Next
-                    strCSV &= """" & ridNodeList(j).SelectSingleNode("f[" & xpathIndex & "]").InnerText & """, " & archiveRID & vbCrLf
+                Dim updateSQL As String = "UPDATE " & dbid & " SET "
+                Dim archiveFieldCounter As Integer
+                comma = ""
+                For archiveFieldCounter = 0 To lstArchiveFields.Items.Count - 1
+                    updateSQL &= comma & """" & lstArchiveFields.Items(archiveFieldCounter) & """ = ''"
+                    comma = ","
                 Next
-                Dim recordids(0) As Integer
-                numArchived += qdb.ImportFromCSV(dbid, strCSV, String.Join(".", clistArray) & "." & refFID, recordids, False)
+                updateSQL &= ", fid" & refFID & " = " & newArchiveRID & inRids
+
+                quNectCmd = New OdbcCommand(updateSQL, quNectConn)
+                quNectCmd.ExecuteNonQuery()
             End If
         Next
+        quNectConn.Close()
+        quNectConn.Dispose()
+
         Me.Cursor = Cursors.Default
         pleaseWait.Close()
         If countBytesOnly Then
-            MsgBox("About " & bytesArchived & " bytes would be archived from " & ridNodeList.Count & " records.", MsgBoxStyle.OkOnly, AppName)
+            MsgBox("About " & bytesArchived & " bytes would be archived from " & ridList.Count & " records.", MsgBoxStyle.OkOnly, AppName)
         Else
-            MsgBox("About " & bytesArchived & " bytes archived from " & ridNodeList.Count & " records.", MsgBoxStyle.OkOnly, AppName)
+            MsgBox("About " & bytesArchived & " bytes archived from " & ridList.Count & " records.", MsgBoxStyle.OkOnly, AppName)
         End If
 
     End Sub
-    Private Function backupTable(ByVal dbName As String, ByVal dbid As String, ByVal quNectConn As OdbcConnection, ByVal quNectConnFIDs As OdbcConnection, ByRef ridNodeList As XmlNodeList) As DialogResult
+    Private Function getRefFID(dbid As String, dbidAlias As String) As String
+        Dim quNectConn As OdbcConnection = New OdbcConnection(buildConnectionString(""))
+        quNectConn.Open()
+        Dim quNectCmd As OdbcCommand = Nothing
+        Dim dr As OdbcDataReader
+        Try
+            quNectCmd = New OdbcCommand("Select * FROM " & dbid & "~fields WHERE mastag = '" & dbidAlias & "'", quNectConn)
+            dr = quNectCmd.ExecuteReader()
+        Catch excpt As Exception
+            If quNectCmd IsNot Nothing Then
+                quNectCmd.Dispose()
+            End If
+            Return ""
+        End Try
+
+        If dr.HasRows Then
+            dr.Read()
+            getRefFID = dr("fid")
+        Else
+            getRefFID = ""
+        End If
+        quNectConn.Close()
+    End Function
+    Private Function backupTable(ByVal dbName As String, ByVal dbid As String, ByVal quNectConn As OdbcConnection, ByVal quNectConnFIDs As OdbcConnection, ByRef ridList As List(Of Integer)) As DialogResult
         backupTable = DialogResult.OK
         Dim quickBaseSQL As String = "select * from """ & dbid & """"
 
@@ -730,18 +881,18 @@ Public Class archive
         End Try
         quickBaseSQL &= " WHERE fid3 IN ("
         Dim j As Integer
-        For j = 0 To ridNodeList.Count - 1 Step 100
+        For j = 0 To ridList.Count - 1 Step 100
             Application.DoEvents()
             Dim lowRid As Integer = j
             Dim highRid As Integer = j + 100 - 1
-            If ridNodeList.Count - 1 < j + 100 - 1 Then
-                highRid = ridNodeList.Count - 1
+            If ridList.Count - 1 < j + 100 - 1 Then
+                highRid = ridList.Count - 1
             End If
             Dim n As Integer
             Dim commaRids As String = ""
             Dim strComma As String = ""
             For n = j To highRid
-                commaRids &= strComma & ridNodeList(n).SelectSingleNode("f").InnerText
+                commaRids &= strComma & ridList(n)
                 strComma = ","
             Next
 
@@ -1400,14 +1551,14 @@ noChange:
             HTTPPost = Encoding.UTF8.GetString(byteResponseArray)
         Else
             'check if write file exists 
-            If File.Exists(Path:=fileName) Then
+            If File.Exists(path:=fileName) Then
                 'delete file
-                File.Delete(Path:=fileName)
+                File.Delete(path:=fileName)
             End If
 
             'create a fileStream instance to pass to BinaryWriter object
             Dim fsWrite As FileStream
-            fsWrite = New FileStream(Path:=fileName, _
+            fsWrite = New FileStream(path:=fileName,
                 mode:=FileMode.CreateNew, access:=FileAccess.Write)
 
             'create binary writer instance
@@ -1755,10 +1906,10 @@ noChange:
         makeValidFilename = ""
         For i = 1 To Len(strString)
             byteChar = Mid(strString, i, 1)
-            If byteChar = "\" Or byteChar = "/" Or _
-               byteChar = ":" Or byteChar = "*" Or _
-               Asc(byteChar) = 63 Or byteChar = """" Or _
-               byteChar = "<" Or byteChar = ">" Or _
+            If byteChar = "\" Or byteChar = "/" Or
+               byteChar = ":" Or byteChar = "*" Or
+               Asc(byteChar) = 63 Or byteChar = """" Or
+               byteChar = "<" Or byteChar = ">" Or
                byteChar = "|" Or byteChar = "'" _
             Then
                 makeValidFilename = makeValidFilename & "_"
