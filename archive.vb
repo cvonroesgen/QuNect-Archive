@@ -43,7 +43,7 @@ Public Class archive
     Private reportNameToQid As New Hashtable
     Private fieldLabelsToFIDs As New Hashtable
     Private fidsToFieldLabels As New Hashtable
-    Private Const recordsPerArchive = 90
+    Private recordsPerArchive = 90
     Private dbidToAppName As New Dictionary(Of String, String)
 
     Private Sub archive_Disposed(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Disposed
@@ -64,6 +64,7 @@ Public Class archive
         Else
             ckbDetectProxy.Checked = False
         End If
+        recordsPerArchive = GetSetting(AppName, "archive", "bytesPerRecord", 90)
         qdb = New QuickBaseClient(txtUsername.Text, txtPassword.Text)
         txtBackupFolder.Text = GetSetting(AppName, "location", "path")
         cmdLineArgs = System.Environment.GetCommandLineArgs()
@@ -174,7 +175,16 @@ Public Class archive
             tableNode.Tag = dbid
 
         Next
-
+        dbid = GetSetting(AppName, "archive", "dbid", "")
+        For i = 0 To tvAppsTables.Nodes.Count - 1
+            Dim j As Integer
+            For j = 0 To tvAppsTables.Nodes(i).Nodes.Count - 1
+                If tvAppsTables.Nodes(i).Nodes(j).Tag = dbid Then
+                    tvAppsTables.SelectedNode = tvAppsTables.Nodes(i).Nodes(j)
+                    Exit For
+                End If
+            Next
+        Next
         pleaseWait.pb.Visible = False
         tvAppsTables.EndUpdate()
         pleaseWait.pb.Value = 0
@@ -194,7 +204,7 @@ Public Class archive
             qdbVer.major = CInt(m.Groups(2).Value)
             qdbVer.minor = CInt(m.Groups(3).Value)
 
-            If qdbVer.year < 17 Then
+            If qdbVer.year < 20 Then
                 MsgBox("You are running the 20" & qdbVer.year & " version of QuNect ODBC for QuickBase. Please install the latest version from https://qunect.com/download/QuNect.exe", MsgBoxStyle.OkOnly, AppName)
                 quNectConn.Dispose()
                 Me.Cursor = Cursors.Default
@@ -272,6 +282,7 @@ Public Class archive
             quNectConn.Open()
             Dim i As Integer
             Dim dbid As String = appTable.Substring(appTable.LastIndexOf(" ") + 1)
+            SaveSetting(AppName, "archive", "dbid", dbid)
             Dim quNectCmd As OdbcCommand = Nothing
             Dim dr As OdbcDataReader
             Try
@@ -292,7 +303,6 @@ Public Class archive
                     configHash.Add(configs(i), configs(i))
                 Next
             End If
-            Dim qid As String = GetSetting(AppName, "archive", "qid")
             'need to focus in on one app
             Dim tableOfTables As DataTable = quNectConn.GetSchema("Views")
             lstReports.Items.Clear()
@@ -311,9 +321,6 @@ Public Class archive
                     m = Regex.Match(reportName, "^[^~]+(\d+)$")
                     Dim thisQid As String = m.Groups(1).Value
                     reportNameToQid.Add(reportName, thisQid)
-                    If thisQid = qid Then
-                        lstReports.SelectedIndex = lastListBoxItem
-                    End If
                 Catch excpt As Exception
                     Continue For
                 End Try
@@ -352,44 +359,24 @@ Public Class archive
 
 
             lstArchiveFields.Items.Clear()
-            Dim fidsToArchive As String = GetSetting(AppName, "archive", "fids")
-            Dim fids As String() = fidsToArchive.Split(".")
-            Dim labelsToArchive As New Hashtable()
-            If fids.GetLength(0) > 0 Then
-                For i = 0 To fids.Length - 1
-                    Dim label As String
-                    Try
-                        label = fidsToFieldLabels(fids(i))
-                        lstArchiveFields.Items.Add(label)
-                        labelsToArchive.Add(label, label)
-                    Catch excpt As Exception
-                        Continue For
-                    End Try
 
-                Next
-                lstFieldsToKeep.Items.Clear()
-                For Each field As DictionaryEntry In fieldLabelsToFIDs
-                    Dim label As String = field.Key
-                    If labelsToArchive.ContainsKey(label) Then
-                        Continue For
-                    End If
-                    lstFieldsToKeep.Items.Add(label)
-                Next
-            Else
-                For Each field As DictionaryEntry In fieldLabelsToFIDs
-                    Dim label As String = field.Key
-                    If labelsToArchive.ContainsKey(label) Then
-                        Continue For
-                    End If
-                    lstArchiveFields.Items.Add(label)
-                Next
-                lstFieldsToKeep.Items.Clear()
-                For Each label As DictionaryEntry In configHash
-                    If fieldLabelsToFIDs.ContainsKey(label.Key) Then
-                        lstFieldsToKeep.Items.Add(label.Key)
-                    End If
-                Next
-            End If
+
+            Dim labelsToArchive As New Hashtable()
+
+            For Each field As DictionaryEntry In fieldLabelsToFIDs
+                Dim label As String = field.Key
+                If labelsToArchive.ContainsKey(label) Then
+                    Continue For
+                End If
+                lstArchiveFields.Items.Add(label)
+            Next
+            lstFieldsToKeep.Items.Clear()
+            For Each label As DictionaryEntry In configHash
+                If fieldLabelsToFIDs.ContainsKey(label.Key) Then
+                    lstFieldsToKeep.Items.Add(label.Key)
+                End If
+            Next
+
             btnAddToArchiveList.Visible = True
             btnRemoveFromArchiveList.Visible = True
             btnAddAllToArchiveList.Visible = True
@@ -792,6 +779,15 @@ Public Class archive
         Me.Cursor = Cursors.Default
         pleaseWait.Close()
         If countBytesOnly Then
+            If ridList.Count > 0 Then
+                recordsPerArchive = 10000000 \ CInt(bytesArchived / ridList.Count)
+                If recordsPerArchive > 90 Then
+                    recordsPerArchive = 90
+                ElseIf recordsPerArchive < 1 Then
+                    recordsPerArchive = 1
+                End If
+                SaveSetting(AppName, "archive", "bytesPerRecord", CStr(recordsPerArchive))
+            End If
             MsgBox("About " & bytesArchived & " bytes would be archived from " & ridList.Count & " records.", MsgBoxStyle.OkOnly, AppName)
         Else
             MsgBox("About " & bytesArchived & " bytes archived from " & ridList.Count & " records.", MsgBoxStyle.OkOnly, AppName)

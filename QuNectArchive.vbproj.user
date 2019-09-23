@@ -3,14 +3,14 @@
   <PropertyGroup>
     <PublishUrlHistory>publish\|ftp://ftp.qunect.com/trial/QuNectArchive/|ftp://www.qunect.com/trial/QuNectArchive/|http://www.qunect.com/trial/QuNectArchive/|ftp://ftp.qunect.com/trial/QuNectBackup/</PublishUrlHistory>
     <InstallUrlHistory>https://qunect.com/download/QuNectArchive/|http://www.qunect.com/download/QuNectArchive/|http://www.qunect.com/trial/QuNectArchive/|http://www.qunect.com/trial/QuNectBackup/</InstallUrlHistory>
-    <SupportUrlHistory>http://qunect.com</SupportUrlHistory>
+    <SupportUrlHistory>http://www.qunect.com|http://qunect.com</SupportUrlHistory>
     <UpdateUrlHistory>
     </UpdateUrlHistory>
     <BootstrapperUrlHistory>
     </BootstrapperUrlHistory>
     <FallbackCulture>en-US</FallbackCulture>
     <VerifyUploadedFiles>false</VerifyUploadedFiles>
-    <ErrorReportUrlHistory />
+    <ErrorReportUrlHistory>http://www.qunect.com</ErrorReportUrlHistory>
   </PropertyGroup>
   <PropertyGroup>
     <EnableSecurityDebugging>false</EnableSecurityDebugging>

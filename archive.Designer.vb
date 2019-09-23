@@ -115,7 +115,7 @@ Partial Class archive
         Me.tvAppsTables.HideSelection = False
         Me.tvAppsTables.Location = New System.Drawing.Point(12, 147)
         Me.tvAppsTables.Name = "tvAppsTables"
-        Me.tvAppsTables.Size = New System.Drawing.Size(369, 284)
+        Me.tvAppsTables.Size = New System.Drawing.Size(369, 290)
         Me.tvAppsTables.TabIndex = 8
         '
         'btnListTables
@@ -241,7 +241,7 @@ Partial Class archive
         Me.lstReports.FormattingEnabled = True
         Me.lstReports.Location = New System.Drawing.Point(424, 147)
         Me.lstReports.Name = "lstReports"
-        Me.lstReports.Size = New System.Drawing.Size(397, 277)
+        Me.lstReports.Size = New System.Drawing.Size(397, 290)
         Me.lstReports.Sorted = True
         Me.lstReports.TabIndex = 25
         '
