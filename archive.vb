@@ -188,7 +188,9 @@ Public Class archive
         pleaseWait.pb.Visible = False
         tvAppsTables.EndUpdate()
         pleaseWait.pb.Value = 0
-
+        If tvAppsTables.SelectedNode IsNot Nothing Then
+            displayFields(tvAppsTables.SelectedNode.FullPath())
+        End If
         Me.Cursor = Cursors.Default
     End Sub
     Private Sub listTables()
@@ -267,6 +269,13 @@ Public Class archive
         lstFieldsToKeep.Items.Add(lstArchiveFields.Items(lstArchiveFields.SelectedIndex).ToString)
         lstArchiveFields.Items.RemoveAt(lstArchiveFields.SelectedIndex)
     End Sub
+    Private Function getQidFromReportName(reportName As String)
+        Dim m As Match = Regex.Match(reportName, "^[^~]+~(\d+)$")
+        If m.Groups.Count > 1 Then
+            Return m.Groups(1).Value
+        End If
+        Return ""
+    End Function
     Private Sub displayFields(ByVal appTable As String)
         Me.Cursor = Cursors.WaitCursor
         qdb.setServer(txtServer.Text, True)
@@ -307,6 +316,7 @@ Public Class archive
             Dim tableOfTables As DataTable = quNectConn.GetSchema("Views")
             lstReports.Items.Clear()
             reportNameToQid.Clear()
+            Dim qid As String = GetSetting(AppName, "archive", "qid")
             For i = 0 To tableOfTables.Rows.Count - 1
                 Application.DoEvents()
                 Dim reportName As String = tableOfTables.Rows(i)(2)
@@ -318,8 +328,10 @@ Public Class archive
                 End If
                 Try
                     Dim lastListBoxItem As Integer = lstReports.Items.Add(reportName)
-                    m = Regex.Match(reportName, "^[^~]+(\d+)$")
-                    Dim thisQid As String = m.Groups(1).Value
+                    Dim thisQid As String = getQidFromReportName(reportName)
+                    If thisQid = qid Then
+                        lstReports.SelectedIndex = lastListBoxItem
+                    End If
                     reportNameToQid.Add(reportName, thisQid)
                 Catch excpt As Exception
                     Continue For
@@ -359,21 +371,24 @@ Public Class archive
 
 
             lstArchiveFields.Items.Clear()
+            lstFieldsToKeep.Items.Clear()
+
+            Dim fidsToArchive As New Hashtable()
+            Dim fidsToArchiveSetting As String = GetSetting(AppName, "archive", "fids")
+            Dim fids As String() = fidsToArchiveSetting.Split(".")
+            For Each fid As String In fids
+                fidsToArchive.Add(fid, fid)
+            Next
 
 
-            Dim labelsToArchive As New Hashtable()
 
             For Each field As DictionaryEntry In fieldLabelsToFIDs
                 Dim label As String = field.Key
-                If labelsToArchive.ContainsKey(label) Then
-                    Continue For
-                End If
-                lstArchiveFields.Items.Add(label)
-            Next
-            lstFieldsToKeep.Items.Clear()
-            For Each label As DictionaryEntry In configHash
-                If fieldLabelsToFIDs.ContainsKey(label.Key) Then
-                    lstFieldsToKeep.Items.Add(label.Key)
+                Dim fid As String = field.Value
+                If fidsToArchive.ContainsKey(fid) Then
+                    lstArchiveFields.Items.Add(label)
+                Else
+                    lstFieldsToKeep.Items.Add(label)
                 End If
             Next
 
@@ -456,6 +471,15 @@ Public Class archive
             lstArchiveFields.Focus()
             Me.Cursor = Cursors.Default
             Exit Sub
+        Else
+            Dim fieldLabel As Object
+            Dim fids As String = ""
+            Dim period As String = ""
+            For Each fieldLabel In lstArchiveFields.Items
+                fids &= period & fieldLabelsToFIDs(fieldLabel.ToString())
+                period = "."
+            Next
+            SaveSetting(AppName, "archive", "fids", fids)
         End If
         Dim folderPath As String = txtBackupFolder.Text
         If folderPath = "" Then
@@ -472,6 +496,8 @@ Public Class archive
             lstReports.Focus()
             Me.Cursor = Cursors.Default
             Exit Sub
+        Else
+            SaveSetting(AppName, "archive", "qid", getQidFromReportName(lstReports.Items(lstReports.SelectedIndex)))
         End If
         Dim refFID As String = ""
         Dim dbid As String = ""
@@ -979,6 +1005,11 @@ Public Class archive
         Else
             txtPassword.Enabled = True
         End If
+    End Sub
+
+    Private Sub lstReports_SelectedIndexChanged(sender As Object, e As EventArgs) Handles lstReports.SelectedIndexChanged
+        Dim thisQid As String = getQidFromReportName(lstReports.Items(lstReports.SelectedIndex))
+        SaveSetting(AppName, "archive", "qid", thisQid)
     End Sub
 End Class
 
