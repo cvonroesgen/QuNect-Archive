@@ -46,7 +46,25 @@ Public Class archive
     Private recordsPerArchive = 90
     Private dbidToAppName As New Dictionary(Of String, String)
 
-    Private Sub archive_Disposed(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Disposed
+    Sub showHideControls()
+        cmbPassword.Visible = txtUsername.Text.Length > 0
+        txtPassword.Visible = cmbPassword.Visible And cmbPassword.SelectedIndex <> 0
+        txtServer.Visible = txtPassword.Visible And txtPassword.Text.Length > 0
+        lblServer.Visible = txtServer.Visible
+        lblAppToken.Visible = cmbPassword.Visible And cmbPassword.SelectedIndex = 1
+        txtAppToken.Visible = lblAppToken.Visible
+        btnAppToken.Visible = lblAppToken.Visible
+        btnUserToken.Visible = cmbPassword.Visible And cmbPassword.SelectedIndex = 2
+        ckbDetectProxy.Visible = txtServer.Text.Length > 0 And txtServer.Visible
+        cmbPassword.Visible = txtUsername.Text.Length > 0
+        txtPassword.Visible = cmbPassword.SelectedIndex > 0
+        txtServer.Visible = txtUsername.Text.Length > 0 And txtPassword.Text.Length > 0 And cmbPassword.SelectedIndex > 0
+        lblServer.Visible = txtServer.Visible
+        txtAppToken.Visible = txtUsername.Text.Length > 0 And cmbPassword.SelectedIndex = 1 And txtPassword.Text.Length > 0 And txtServer.Text.Length > 0
+        lblAppToken.Visible = txtAppToken.Visible
+        btnAppToken.Visible = txtAppToken.Visible
+        btnUserToken.Visible = txtUsername.Text.Length > 0 And cmbPassword.SelectedIndex = 2
+        btnListTables.Visible = txtUsername.Text.Length > 0 And cmbPassword.SelectedIndex > 0 And txtPassword.Text.Length > 0 And txtServer.Text.Length > 0
 
     End Sub
 
@@ -83,14 +101,17 @@ Public Class archive
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
         Me.Text = "QuNect Archive " & myBuildInfo.ProductVersion
+        showHideControls()
     End Sub
 
     Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
         SaveSetting(AppName, "Credentials", "username", txtUsername.Text)
+        showHideControls()
     End Sub
 
     Private Sub txtPassword_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtPassword.TextChanged
         SaveSetting(AppName, "Credentials", "password", txtPassword.Text)
+        showHideControls()
     End Sub
 
     Private Sub btnListTables_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnListTables.Click
@@ -240,6 +261,7 @@ Public Class archive
 
     Private Sub txtServer_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtServer.TextChanged
         SaveSetting(AppName, "Credentials", "server", txtServer.Text)
+        showHideControls()
     End Sub
     Private Sub btnFolder_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnFolder.Click
         Dim MyFolderBrowser As New System.Windows.Forms.FolderBrowserDialog
@@ -430,6 +452,7 @@ Public Class archive
         btnRemoveAllFromArchiveList.Visible = False
         btnArchive.Visible = False
         btnBytes.Visible = False
+        showHideControls()
     End Sub
 
     Private Sub tvAppsTables_DoubleClick(ByVal sender As Object, ByVal e As System.EventArgs) Handles tvAppsTables.DoubleClick
@@ -965,6 +988,7 @@ Public Class archive
 
     Private Sub txtAppToken_TextChanged(ByVal sender As Object, ByVal e As System.EventArgs) Handles txtAppToken.TextChanged
         SaveSetting(AppName, "Credentials", "apptoken", txtAppToken.Text)
+        showHideControls()
     End Sub
 
 
@@ -1000,16 +1024,24 @@ Public Class archive
     End Sub
     Private Sub cmbPassword_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbPassword.SelectedIndexChanged
         SaveSetting(AppName, "Credentials", "passwordOrToken", cmbPassword.SelectedIndex)
-        If cmbPassword.SelectedIndex = 0 Then
-            txtPassword.Enabled = False
-        Else
-            txtPassword.Enabled = True
-        End If
+        showHideControls()
     End Sub
 
     Private Sub lstReports_SelectedIndexChanged(sender As Object, e As EventArgs) Handles lstReports.SelectedIndexChanged
         Dim thisQid As String = getQidFromReportName(lstReports.Items(lstReports.SelectedIndex))
         SaveSetting(AppName, "archive", "qid", thisQid)
+        showHideControls()
+    End Sub
+    Private Sub btnAppToken_Click(sender As Object, e As EventArgs) Handles btnAppToken.Click
+        Process.Start("https://qunect.com/flash/AppToken.html")
+    End Sub
+
+    Private Sub btnUserToken_Click(sender As Object, e As EventArgs) Handles btnUserToken.Click
+        Process.Start("https://qunect.com/flash/UserToken.html")
+    End Sub
+
+    Private Sub txtBackupFolder_TextChanged(sender As Object, e As EventArgs) Handles txtBackupFolder.TextChanged
+        showHideControls()
     End Sub
 End Class
 

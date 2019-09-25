@@ -52,6 +52,8 @@ Partial Class archive
         Me.btnAddAllToArchiveList = New System.Windows.Forms.Button()
         Me.btnRemoveAllFromArchiveList = New System.Windows.Forms.Button()
         Me.cmbPassword = New System.Windows.Forms.ComboBox()
+        Me.btnAppToken = New System.Windows.Forms.Button()
+        Me.btnUserToken = New System.Windows.Forms.Button()
         Me.SuspendLayout()
         '
         'txtUsername
@@ -81,7 +83,7 @@ Partial Class archive
         'lblServer
         '
         Me.lblServer.AutoSize = True
-        Me.lblServer.Location = New System.Drawing.Point(302, 5)
+        Me.lblServer.Location = New System.Drawing.Point(324, 5)
         Me.lblServer.Name = "lblServer"
         Me.lblServer.Size = New System.Drawing.Size(93, 13)
         Me.lblServer.TabIndex = 5
@@ -89,7 +91,7 @@ Partial Class archive
         '
         'txtServer
         '
-        Me.txtServer.Location = New System.Drawing.Point(305, 24)
+        Me.txtServer.Location = New System.Drawing.Point(327, 24)
         Me.txtServer.Name = "txtServer"
         Me.txtServer.Size = New System.Drawing.Size(225, 20)
         Me.txtServer.TabIndex = 3
@@ -314,11 +316,31 @@ Partial Class archive
         Me.cmbPassword.Size = New System.Drawing.Size(141, 21)
         Me.cmbPassword.TabIndex = 77
         '
+        'btnAppToken
+        '
+        Me.btnAppToken.Location = New System.Drawing.Point(299, 72)
+        Me.btnAppToken.Name = "btnAppToken"
+        Me.btnAppToken.Size = New System.Drawing.Size(19, 20)
+        Me.btnAppToken.TabIndex = 81
+        Me.btnAppToken.Text = "?"
+        Me.btnAppToken.UseVisualStyleBackColor = True
+        '
+        'btnUserToken
+        '
+        Me.btnUserToken.Location = New System.Drawing.Point(299, 3)
+        Me.btnUserToken.Name = "btnUserToken"
+        Me.btnUserToken.Size = New System.Drawing.Size(19, 20)
+        Me.btnUserToken.TabIndex = 82
+        Me.btnUserToken.Text = "?"
+        Me.btnUserToken.UseVisualStyleBackColor = True
+        '
         'archive
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(842, 742)
+        Me.Controls.Add(Me.btnUserToken)
+        Me.Controls.Add(Me.btnAppToken)
         Me.Controls.Add(Me.cmbPassword)
         Me.Controls.Add(Me.btnRemoveAllFromArchiveList)
         Me.Controls.Add(Me.btnAddAllToArchiveList)
@@ -384,4 +406,6 @@ Partial Class archive
     Friend WithEvents btnAddAllToArchiveList As System.Windows.Forms.Button
     Friend WithEvents btnRemoveAllFromArchiveList As System.Windows.Forms.Button
     Friend WithEvents cmbPassword As ComboBox
+    Friend WithEvents btnAppToken As Button
+    Friend WithEvents btnUserToken As Button
 End Class
