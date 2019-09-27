@@ -139,7 +139,7 @@ var QuNectArchive = function(queryString)
         }
         if(i == csvArray.length)
         {
-            alert("Could not find '" + key + "' value from fid " + that.NameValues.keyfid + "as a key field value in csv archive " + filerid + ".");
+            alert("Could not find '" + key + "' value from fid " + that.NameValues.keyfid + " as a key field value in csv archive " + filerid + ".");
             return;
         }
         var rids = new Array();
