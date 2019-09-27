@@ -82,7 +82,6 @@ Public Class archive
             ckbDetectProxy.Checked = False
         End If
         recordsPerArchive = GetSetting(AppName, "archive", "bytesPerRecord", 90)
-        'qdb = New QuickBaseClient(txtUsername.Text, txtPassword.Text)
         txtBackupFolder.Text = GetSetting(AppName, "location", "path")
         cmdLineArgs = System.Environment.GetCommandLineArgs()
         If cmdLineArgs.Length > 1 Then
@@ -396,17 +395,32 @@ Public Class archive
                 fidsToArchive.Add(fid, fid)
             Next
 
+            If fidsToArchive.Count > 0 Then
 
-
-            For Each field As DictionaryEntry In fieldLabelsToFIDs
-                Dim label As String = field.Key
-                Dim fid As String = field.Value
-                If fidsToArchive.ContainsKey(fid) Then
+                For Each field As DictionaryEntry In fieldLabelsToFIDs
+                    Dim label As String = field.Key
+                    Dim fid As String = field.Value
+                    If fidsToArchive.ContainsKey(fid) Then
+                        lstArchiveFields.Items.Add(label)
+                    Else
+                        lstFieldsToKeep.Items.Add(label)
+                    End If
+                Next
+            Else
+                For Each field As DictionaryEntry In fieldLabelsToFIDs
+                    Dim label As String = field.Key
+                    If configHash.ContainsKey(label) Then
+                        Continue For
+                    End If
                     lstArchiveFields.Items.Add(label)
-                Else
-                    lstFieldsToKeep.Items.Add(label)
-                End If
-            Next
+                Next
+                lstFieldsToKeep.Items.Clear()
+                For Each label As DictionaryEntry In configHash
+                    If fieldLabelsToFIDs.ContainsKey(label.Key) Then
+                        lstFieldsToKeep.Items.Add(label.Key)
+                    End If
+                Next
+            End If
 
             btnAddToArchiveList.Visible = True
             btnRemoveFromArchiveList.Visible = True
@@ -898,7 +912,6 @@ Public Class archive
 
             Dim strCSV As String = String.Join(",", clistArray) & vbCrLf
             Dim genResultsTable = getCSVFromTable(dbid, clistArray, inRids, quNectConn)
-            'Dim genResultsTable As String = qdb.GenResultsTable(dbid, "{'3'.EX.'" & oRRids & "'}", String.Join(".", clistArray), "3", "sortorder-A.csv")
             Dim bytes As Integer = genResultsTable.Length
             bytes -= (highRid - lowRid + 1) * (2 + (lstArchiveFields.Items.Count))
             bytesArchived += bytes
