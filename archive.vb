@@ -89,12 +89,13 @@ Public Class archive
                 automode = True
                 Try
                     listTables()
+                    archive(False)
+                    Me.Close()
                 Catch ex As Exception
-
+                    MsgBox(ex.Message, MsgBoxStyle.OkOnly, AppName)
                 End Try
 
-                archive(False)
-                Me.Close()
+
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
@@ -227,6 +228,11 @@ Public Class archive
 
             If qdbVer.year < 20 Then
                 MsgBox("You are running the 20" & qdbVer.year & " version of QuNect ODBC for QuickBase. Please install the latest version from https://qunect.com/download/QuNect.exe", MsgBoxStyle.OkOnly, AppName)
+                quNectConn.Dispose()
+                Me.Cursor = Cursors.Default
+                Exit Sub
+            ElseIf qdbVer.major = 8 And qdbVer.minor < 78 Then
+                MsgBox("Please install the latest version of QuNect ODBC for QuickBase from https://qunect.com/download/QuNect.exe", MsgBoxStyle.OkOnly, AppName)
                 quNectConn.Dispose()
                 Me.Cursor = Cursors.Default
                 Exit Sub
@@ -479,7 +485,11 @@ Public Class archive
     End Sub
 
     Private Sub btnArchive_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnArchive.Click
-        archive(False)
+        Try
+            archive(False)
+        Catch ex As Exception
+            MsgBox(ex.Message, MsgBoxStyle.OkOnly, AppName)
+        End Try
     End Sub
     Private Sub btnBytes_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnBytes.Click
         archive(True)
@@ -870,7 +880,7 @@ Public Class archive
                 If quNectCmd IsNot Nothing Then
                     quNectCmd.Dispose()
                 End If
-                Throw New ArgumentException("Could not add JavaScript page  'QuNectArchive.js' to" & parentDBID & ".")
+                Throw New ArgumentException("Could not add JavaScript page 'QuNectArchive.js' to " & parentDBID & ".")
             End Try
 
         End If
