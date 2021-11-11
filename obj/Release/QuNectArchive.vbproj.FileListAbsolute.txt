@@ -1,0 +1,17 @@
+C:\QuNect\QuNectArchive\QuNectArchive\bin\Release\QuNectArchive.exe.config
+C:\QuNect\QuNectArchive\QuNectArchive\bin\Release\QuNectArchive.exe.manifest
+C:\QuNect\QuNectArchive\QuNectArchive\bin\Release\QuNectArchive.application
+C:\QuNect\QuNectArchive\QuNectArchive\bin\Release\QuNectArchive.exe
+C:\QuNect\QuNectArchive\QuNectArchive\bin\Release\QuNectArchive.pdb
+C:\QuNect\QuNectArchive\QuNectArchive\bin\Release\QuNectArchive.xml
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.vbproj.AssemblyReference.cache
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.archive.resources
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.Resources.resources
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.pleaseWait.resources
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.vbproj.GenerateResource.cache
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.vbproj.CoreCompileInputs.cache
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.exe.manifest
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.application
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.exe
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.xml
+C:\QuNect\QuNectArchive\QuNectArchive\obj\Release\QuNectArchive.pdb

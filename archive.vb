@@ -861,7 +861,7 @@ Public Class archive
                 If quNectCmd IsNot Nothing Then
                     quNectCmd.Dispose()
                 End If
-                Throw New ArgumentException("Could not modify formula of  'Retrieve from Archive' button field to archive " & dbid & ".")
+                'Throw New ArgumentException("Could not modify formula of  'Retrieve from Archive' button field to archive " & dbid & ".")
             End Try
 
             Try
