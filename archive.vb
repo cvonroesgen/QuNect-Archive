@@ -840,10 +840,10 @@ Public Class archive
             End If
             Dim formula As String = ""
 
-            formula &= "var Text pagename = ""QuNectArchive.js"";" & vbCrLf
+            formula &= "var Text pagename = ""QuNectArchive.html"";" & vbCrLf
             formula &= "var Text cfg = ""key="" & urlencode([" & keyFieldLabel & "]) & ""&keyfid=" & keyfid & "&filefid=" & fileFID & "&reffid=" & refFID & "&apptoken=" & txtAppToken.Text & "&dbid="" & " & formulaDBID & " & ""&archivedbid=" & archivedbid & "&filerid="" & urlencode([QuNect Archive Reference]);" & vbCrLf
             formula &= "if([QuNect Archive Reference] = 0, """", " & vbCrLf
-            formula &= """javascript:var cfg = '"" & URLEncode($cfg) & ""';if(typeof(qnctdg) != 'undefined'){void(qnctdg.display(cfg))}else{void($.getScript('/db/"" & Dbid() & ""?a=dbpage&pagename="" & $pagename & ""',function(){qnctdg = new QuNectArchive(cfg)}))}"""
+            formula &= "URLRoot() & ""db/"" & Dbid() & ""?a=dbpage&pagename="" & $pagename & ""&"" & $cfg"
             formula &= ")" & vbCrLf
             Try
                 If quNectCmd IsNot Nothing Then
@@ -871,7 +871,7 @@ Public Class archive
                 quNectConn.Close()
                 quNectConn = New OdbcConnection(connectionString)
                 quNectConn.Open()
-                Dim sql As String = "INSERT INTO " & parentDBID & "~pages (Name, Value) Values ('QuNectArchive.js', '" & My.Resources.QuNectArchive.Replace("'", "''") & "')"
+                Dim sql As String = "INSERT INTO " & parentDBID & "~pages (Name, Value) Values ('QuNectArchive.html', '" & My.Resources.QuNectArchive.Replace("'", "''") & "')"
 
                 quNectCmd = quNectConn.CreateCommand()
                 quNectCmd.CommandText = sql
@@ -880,7 +880,7 @@ Public Class archive
                 If quNectCmd IsNot Nothing Then
                     quNectCmd.Dispose()
                 End If
-                Throw New ArgumentException("Could not add JavaScript page 'QuNectArchive.js' to " & parentDBID & ".")
+                Throw New ArgumentException("Could not add JavaScript page 'QuNectArchive.html' to " & parentDBID & ".")
             End Try
 
         End If

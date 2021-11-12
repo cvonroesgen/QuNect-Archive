@@ -1,16 +1,27 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <title>QuNect Archive</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script>
 //formula URL in QuickBase to invoke this page
 /*
 var Text pagename = "QuNectArchive.js";
 var Text cfg = "key=" & [Key Field Name] & "&filefid=6&archivedbid=archivedbid&filerid=66";
 "javascript:var cfg = '" & URLEncode($cfg) & "';if(typeof(qnctdg) != 'undefined'){void(qnctdg.display(cfg))}else{void($.getScript('/db/" & Dbid() & "?a=dbpage&pagename=" & $pagename & "',function(){qnctdg = new QuNectArchive(cfg)}))}"
 */
-var QuNectArchive = function(queryString)
+function init()
 {
     var configParameters = new Array("key", "filerid", "archivedbid", "filefid", "reffid");
     var that = this;
     var qdb = new QuickBaseClient();
     this.qdb = qdb;
     that.csvArchiveCache = {};
+    var queryString = window.location.search;
+    queryString = queryString.substring( 1 );
     this.NameValues = qdb.parseQueryString(queryString);
     qdb.SetAppToken(this.NameValues.apptoken);
     if(!checkInputParameters())
@@ -38,7 +49,7 @@ var QuNectArchive = function(queryString)
                         restoreFromArchive(getTextByFID(records[i], that.NameValues.reffid), getTextByFID(records[i], that.NameValues.keyfid));
                     }
                     alert("Your records have been restored!");
-                    window.location.reload(true);
+                    history.back();
                     return;
                 }
                 else if(that.NameValues.filerid == "")
@@ -53,7 +64,6 @@ var QuNectArchive = function(queryString)
                     if(!that.qdb.displayErrorAlert("Could not restore from archive "))
                     {
                         alert("Your record has been restored!");
-                        window.location.reload(true);
                     }
                 }
             }
@@ -61,7 +71,8 @@ var QuNectArchive = function(queryString)
             {
                 alert("If you're using Internet Explorer 10, try again with ActiveX filtering turned off.\nClick on the little icon in your address bar between the padlock icon and the refresh icon.");
             }
-            that.jDiv.dialog('close');
+        that.jDiv.dialog('close');
+        history.back();
         };
 
     var noButtonClick = function(e)
@@ -90,6 +101,7 @@ var QuNectArchive = function(queryString)
         else
             {
             that.jDiv.dialog('close');
+            history.back();
             }
         };
 
@@ -1108,16 +1120,7 @@ var QuNectArchive = function(queryString)
     }//##################end of QuickBaseClient########################
 
 };//#######################end of constructor for QuNectArchive
-QuNectArchive.prototype.display = function(queryString)
-{
-    var queryNameValuePairs = queryString.split("&");
-    for(var i = 0; i < queryNameValuePairs.length; i++)
-    {
-        var queryNameValuePair = queryNameValuePairs[i].split("=");
-        this.NameValues[unescape(queryNameValuePair[0])] = unescape(queryNameValuePair[1]);
-    }
-    this.jDiv.dialog('open');
-};
+
 (function()
 {
     function h(a) { throw a; } var i = void 0, j = !0, k = null, l = !1; function m(a) { return function() { return this[a] } } function aa(a) { return function() { return a } } var n = this; function p(a) { return "string" == typeof a } Math.floor(2147483648 * Math.random()).toString(36); function q(a) { var b = t; function c() { } c.prototype = b.prototype; a.t = b.prototype; a.prototype = new c }; var u, ba, ca, da; function ea() { return n.navigator ? n.navigator.userAgent : k } da = ca = ba = u = l; var fa; if(fa = ea()) { var ga = n.navigator; u = 0 == fa.indexOf("Opera"); ba = !u && -1 != fa.indexOf("MSIE"); ca = !u && -1 != fa.indexOf("WebKit"); da = !u && !ca && "Gecko" == ga.product } var w = ba, ha = da, ia = ca, ja;
@@ -1206,3 +1209,9 @@ QuNectArchive.prototype.display = function(queryString)
     } Z.ANY_TYPE = 0;
     Z.NUMBER_TYPE = 1; Z.STRING_TYPE = 2; Z.BOOLEAN_TYPE = 3; Z.UNORDERED_NODE_ITERATOR_TYPE = 4; Z.ORDERED_NODE_ITERATOR_TYPE = 5; Z.UNORDERED_NODE_SNAPSHOT_TYPE = 6; Z.ORDERED_NODE_SNAPSHOT_TYPE = 7; Z.ANY_UNORDERED_NODE_TYPE = 8; Z.FIRST_ORDERED_NODE_TYPE = 9; function Gb(a) { var a = a || n, b = a.document; b.evaluate || (a.XPathResult = Z, b.evaluate = function(a, b, e, f) { return (new Fb(a)).evaluate(b, f) }, b.createExpression = function(a) { return new Fb(a) }) } var Hb = ["wgxpath", "install"], $ = n; !(Hb[0] in $) && $.execScript && $.execScript("var " + Hb[0]); for(var Ib; Hb.length && (Ib = Hb.shift()) ;) !Hb.length && Gb !== i ? $[Ib] = Gb : $ = $[Ib] ? $[Ib] : $[Ib] = {};
 })()
+$(init);
+</script>
+</head>
+<body>
+</body>
+</html>

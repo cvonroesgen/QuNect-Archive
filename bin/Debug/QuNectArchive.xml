@@ -24,15 +24,19 @@ QuNectArchive
 </member>
 <member name="P:QuNectArchive.My.Resources.Resources.QuNectArchive">
 <summary>
-  Looks up a localized string similar to //formula URL in QuickBase to invoke this page
+  Looks up a localized string similar to &lt;!DOCTYPE html&gt;
+
+&lt;html lang=&quot;en&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;head&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css&quot;&gt;
+    &lt;title&gt;QuNect Archive&lt;/title&gt;
+    &lt;script type=&quot;text/javascript&quot; src=&quot;https://code.jquery.com/jquery-3.4.1.min.js&quot;&gt;&lt;/script&gt;
+    &lt;script type=&quot;text/javascript&quot; src=&quot;https://code.jquery.com/ui/1.12.1/jquery-ui.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+//formula URL in QuickBase to invoke this page
 /*
 var Text pagename = &quot;QuNectArchive.js&quot;;
-var Text cfg = &quot;key=&quot; &amp; [Key Field Name] &amp; &quot;&amp;filefid=6&amp;archivedbid=archivedbid&amp;filerid=66&quot;;
-&quot;javascript:var cfg = &apos;&quot; &amp; URLEncode($cfg) &amp; &quot;&apos;;if(typeof(qnctdg) != &apos;undefined&apos;){void(qnctdg.display(cfg))}else{void($.getScript(&apos;/db/&quot; &amp; Dbid() &amp; &quot;?a=dbpage&amp;pagename=&quot; &amp; $pagename &amp; &quot;&apos;,function(){qnctdg = new QuNectArchive(cfg)}))}&quot;
-*/
-var QuNectArchive = function(queryString)
-{
-    var configParameters = new Array(&quot;ke [rest of string was truncated]&quot;;.
+var Tex [rest of string was truncated]&quot;;.
 </summary>
 </member>
 </members>
