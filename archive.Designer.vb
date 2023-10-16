@@ -54,6 +54,7 @@ Partial Class archive
         Me.cmbPassword = New System.Windows.Forms.ComboBox()
         Me.btnAppToken = New System.Windows.Forms.Button()
         Me.btnUserToken = New System.Windows.Forms.Button()
+        Me.lblProgress = New System.Windows.Forms.Label()
         Me.SuspendLayout()
         '
         'txtUsername
@@ -109,20 +110,20 @@ Partial Class archive
         '
         Me.txtAppToken.Location = New System.Drawing.Point(19, 72)
         Me.txtAppToken.Name = "txtAppToken"
-        Me.txtAppToken.Size = New System.Drawing.Size(277, 20)
+        Me.txtAppToken.Size = New System.Drawing.Size(168, 20)
         Me.txtAppToken.TabIndex = 5
         '
         'tvAppsTables
         '
         Me.tvAppsTables.HideSelection = False
-        Me.tvAppsTables.Location = New System.Drawing.Point(12, 147)
+        Me.tvAppsTables.Location = New System.Drawing.Point(12, 163)
         Me.tvAppsTables.Name = "tvAppsTables"
         Me.tvAppsTables.Size = New System.Drawing.Size(369, 290)
         Me.tvAppsTables.TabIndex = 8
         '
         'btnListTables
         '
-        Me.btnListTables.Location = New System.Drawing.Point(305, 118)
+        Me.btnListTables.Location = New System.Drawing.Point(305, 134)
         Me.btnListTables.Name = "btnListTables"
         Me.btnListTables.Size = New System.Drawing.Size(76, 23)
         Me.btnListTables.TabIndex = 9
@@ -150,7 +151,7 @@ Partial Class archive
         'lstArchiveFields
         '
         Me.lstArchiveFields.FormattingEnabled = True
-        Me.lstArchiveFields.Location = New System.Drawing.Point(424, 467)
+        Me.lstArchiveFields.Location = New System.Drawing.Point(424, 483)
         Me.lstArchiveFields.Name = "lstArchiveFields"
         Me.lstArchiveFields.Size = New System.Drawing.Size(397, 251)
         Me.lstArchiveFields.Sorted = True
@@ -158,7 +159,7 @@ Partial Class archive
         '
         'btnAddToArchiveList
         '
-        Me.btnAddToArchiveList.Location = New System.Drawing.Point(387, 562)
+        Me.btnAddToArchiveList.Location = New System.Drawing.Point(387, 578)
         Me.btnAddToArchiveList.Name = "btnAddToArchiveList"
         Me.btnAddToArchiveList.Size = New System.Drawing.Size(31, 24)
         Me.btnAddToArchiveList.TabIndex = 13
@@ -194,7 +195,7 @@ Partial Class archive
         '
         'btnRemoveFromArchiveList
         '
-        Me.btnRemoveFromArchiveList.Location = New System.Drawing.Point(387, 610)
+        Me.btnRemoveFromArchiveList.Location = New System.Drawing.Point(387, 626)
         Me.btnRemoveFromArchiveList.Name = "btnRemoveFromArchiveList"
         Me.btnRemoveFromArchiveList.Size = New System.Drawing.Size(31, 24)
         Me.btnRemoveFromArchiveList.TabIndex = 18
@@ -205,7 +206,7 @@ Partial Class archive
         'lblTables
         '
         Me.lblTables.AutoSize = True
-        Me.lblTables.Location = New System.Drawing.Point(16, 131)
+        Me.lblTables.Location = New System.Drawing.Point(16, 147)
         Me.lblTables.Name = "lblTables"
         Me.lblTables.Size = New System.Drawing.Size(135, 13)
         Me.lblTables.TabIndex = 20
@@ -214,7 +215,7 @@ Partial Class archive
         'lstFieldsToKeep
         '
         Me.lstFieldsToKeep.FormattingEnabled = True
-        Me.lstFieldsToKeep.Location = New System.Drawing.Point(12, 467)
+        Me.lstFieldsToKeep.Location = New System.Drawing.Point(12, 483)
         Me.lstFieldsToKeep.Name = "lstFieldsToKeep"
         Me.lstFieldsToKeep.Size = New System.Drawing.Size(369, 251)
         Me.lstFieldsToKeep.Sorted = True
@@ -223,7 +224,7 @@ Partial Class archive
         'lblFieldsToKeep
         '
         Me.lblFieldsToKeep.AutoSize = True
-        Me.lblFieldsToKeep.Location = New System.Drawing.Point(16, 451)
+        Me.lblFieldsToKeep.Location = New System.Drawing.Point(16, 467)
         Me.lblFieldsToKeep.Name = "lblFieldsToKeep"
         Me.lblFieldsToKeep.Size = New System.Drawing.Size(74, 13)
         Me.lblFieldsToKeep.TabIndex = 23
@@ -232,7 +233,7 @@ Partial Class archive
         'lblFieldsToArchive
         '
         Me.lblFieldsToArchive.AutoSize = True
-        Me.lblFieldsToArchive.Location = New System.Drawing.Point(425, 451)
+        Me.lblFieldsToArchive.Location = New System.Drawing.Point(425, 467)
         Me.lblFieldsToArchive.Name = "lblFieldsToArchive"
         Me.lblFieldsToArchive.Size = New System.Drawing.Size(85, 13)
         Me.lblFieldsToArchive.TabIndex = 24
@@ -241,7 +242,7 @@ Partial Class archive
         'lstReports
         '
         Me.lstReports.FormattingEnabled = True
-        Me.lstReports.Location = New System.Drawing.Point(424, 147)
+        Me.lstReports.Location = New System.Drawing.Point(424, 163)
         Me.lstReports.Name = "lstReports"
         Me.lstReports.Size = New System.Drawing.Size(397, 290)
         Me.lstReports.Sorted = True
@@ -250,7 +251,7 @@ Partial Class archive
         'lblReports
         '
         Me.lblReports.AutoSize = True
-        Me.lblReports.Location = New System.Drawing.Point(626, 132)
+        Me.lblReports.Location = New System.Drawing.Point(626, 148)
         Me.lblReports.Name = "lblReports"
         Me.lblReports.Size = New System.Drawing.Size(195, 13)
         Me.lblReports.TabIndex = 26
@@ -258,7 +259,7 @@ Partial Class archive
         '
         'btnFields
         '
-        Me.btnFields.Location = New System.Drawing.Point(424, 118)
+        Me.btnFields.Location = New System.Drawing.Point(424, 134)
         Me.btnFields.Name = "btnFields"
         Me.btnFields.Size = New System.Drawing.Size(136, 23)
         Me.btnFields.TabIndex = 27
@@ -279,7 +280,7 @@ Partial Class archive
         'ckbDetectProxy
         '
         Me.ckbDetectProxy.AutoSize = True
-        Me.ckbDetectProxy.Location = New System.Drawing.Point(19, 98)
+        Me.ckbDetectProxy.Location = New System.Drawing.Point(218, 74)
         Me.ckbDetectProxy.Name = "ckbDetectProxy"
         Me.ckbDetectProxy.Size = New System.Drawing.Size(188, 17)
         Me.ckbDetectProxy.TabIndex = 30
@@ -288,7 +289,7 @@ Partial Class archive
         '
         'btnAddAllToArchiveList
         '
-        Me.btnAddAllToArchiveList.Location = New System.Drawing.Point(387, 532)
+        Me.btnAddAllToArchiveList.Location = New System.Drawing.Point(387, 548)
         Me.btnAddAllToArchiveList.Name = "btnAddAllToArchiveList"
         Me.btnAddAllToArchiveList.Size = New System.Drawing.Size(31, 24)
         Me.btnAddAllToArchiveList.TabIndex = 31
@@ -298,7 +299,7 @@ Partial Class archive
         '
         'btnRemoveAllFromArchiveList
         '
-        Me.btnRemoveAllFromArchiveList.Location = New System.Drawing.Point(387, 640)
+        Me.btnRemoveAllFromArchiveList.Location = New System.Drawing.Point(387, 656)
         Me.btnRemoveAllFromArchiveList.Name = "btnRemoveAllFromArchiveList"
         Me.btnRemoveAllFromArchiveList.Size = New System.Drawing.Size(31, 24)
         Me.btnRemoveAllFromArchiveList.TabIndex = 32
@@ -318,7 +319,7 @@ Partial Class archive
         '
         'btnAppToken
         '
-        Me.btnAppToken.Location = New System.Drawing.Point(299, 72)
+        Me.btnAppToken.Location = New System.Drawing.Point(189, 72)
         Me.btnAppToken.Name = "btnAppToken"
         Me.btnAppToken.Size = New System.Drawing.Size(19, 20)
         Me.btnAppToken.TabIndex = 81
@@ -334,11 +335,21 @@ Partial Class archive
         Me.btnUserToken.Text = "?"
         Me.btnUserToken.UseVisualStyleBackColor = True
         '
+        'lblProgress
+        '
+        Me.lblProgress.AutoSize = True
+        Me.lblProgress.Location = New System.Drawing.Point(25, 111)
+        Me.lblProgress.Name = "lblProgress"
+        Me.lblProgress.Size = New System.Drawing.Size(94, 13)
+        Me.lblProgress.TabIndex = 83
+        Me.lblProgress.Text = "Progress Message"
+        '
         'archive
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(842, 742)
+        Me.Controls.Add(Me.lblProgress)
         Me.Controls.Add(Me.btnUserToken)
         Me.Controls.Add(Me.btnAppToken)
         Me.Controls.Add(Me.cmbPassword)
@@ -408,4 +419,5 @@ Partial Class archive
     Friend WithEvents cmbPassword As ComboBox
     Friend WithEvents btnAppToken As Button
     Friend WithEvents btnUserToken As Button
+    Friend WithEvents lblProgress As Label
 End Class

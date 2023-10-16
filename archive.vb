@@ -24,6 +24,13 @@ Imports System.IO
 Imports System.Text
 Imports System.Data.Odbc
 Imports System.Text.RegularExpressions
+Imports System.Runtime.Serialization
+Imports System.Runtime.CompilerServices
+Imports System.Runtime.Remoting.Channels
+Imports System.Runtime.InteropServices.ComTypes
+Imports System.Windows.Forms.VisualStyles
+Imports System.Reflection
+Imports System.Threading
 
 Public Class archive
     Private Class qdbVersion
@@ -31,6 +38,15 @@ Public Class archive
         Public major As Integer
         Public minor As Integer
     End Class
+
+    Public Structure configuration
+        Public countBytesOnly As Boolean
+        Public dbid As String
+        Public dbName As String
+        Public connectionstring As String
+        Public report As String
+        Public parentDBID As String
+    End Structure
     Private qdbVer As qdbVersion = New qdbVersion
     Private Const AppName = "QuNectArchive"
     Private Const QuNectODBCParentDBID = "bcks8a7y3"
@@ -44,7 +60,8 @@ Public Class archive
     Private fidsToFieldLabels As New Hashtable
     Private recordsPerArchive = 90
     Private dbidToAppName As New Dictionary(Of String, String)
-
+    Private progressMessage As String
+    Private lastProgressMessage As String
     Sub showHideControls()
         cmbPassword.Visible = txtUsername.Text.Length > 0
         txtPassword.Visible = cmbPassword.Visible And cmbPassword.SelectedIndex <> 0
@@ -69,12 +86,30 @@ Public Class archive
 
 
     Private Sub archive_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        Dim pList() As System.Diagnostics.Process = System.Diagnostics.Process.GetProcesses
+        Dim qunectArchiveCount As Integer = 0
+        For Each proc As System.Diagnostics.Process In pList
+            Dim rgx As New Regex("QuNectArchive", RegexOptions.IgnoreCase)
+            Dim m As Match = rgx.Match(proc.ProcessName)
+            If m.Success Then
+                qunectArchiveCount += 1
+                If qunectArchiveCount > 1 Then
+                    MsgBox("QuNect Archive is already running. Please wait till the other QuNect Archive process terminates.", MsgBoxStyle.OkOnly, AppName)
+                    Me.Close()
+                    Exit Sub
+                End If
+            End If
+        Next
+        If qunectArchiveCount = 0 Then
+            MsgBox("QuNect Archive is not running.", MsgBoxStyle.OkOnly, AppName)
+            Me.Close()
+        End If
         ServicePointManager.SecurityProtocol = ServicePointManager.SecurityProtocol Or System.Net.SecurityProtocolType.Tls12
         txtUsername.Text = GetSetting(AppName, "Credentials", "username")
         cmbPassword.SelectedIndex = CInt(GetSetting(AppName, "Credentials", "passwordOrToken", "0"))
         txtPassword.Text = GetSetting(AppName, "Credentials", "password")
-        txtServer.Text = GetSetting(AppName, "Credentials", "server", "www.quickbase.com")
-        txtAppToken.Text = GetSetting(AppName, "Credentials", "apptoken", "b2fr52jcykx3tnbwj8s74b8ed55b")
+        txtServer.Text = GetSetting(AppName, "Credentials", "server", "")
+        txtAppToken.Text = GetSetting(AppName, "Credentials", "apptoken", "")
         Dim detectProxySetting As String = GetSetting(AppName, "Credentials", "detectproxysettings", "0")
         If detectProxySetting = "1" Then
             ckbDetectProxy.Checked = True
@@ -94,8 +129,6 @@ Public Class archive
                 Catch ex As Exception
                     MsgBox(ex.Message, MsgBoxStyle.OkOnly, AppName)
                 End Try
-
-
             End If
         End If
         Dim myBuildInfo As FileVersionInfo = FileVersionInfo.GetVersionInfo(Application.ExecutablePath)
@@ -165,16 +198,13 @@ Public Class archive
         Dim applicationName As String = ""
         Dim prevAppName As String = ""
         Dim dbid As String
-        pleaseWait.pb.Value = 0
-        pleaseWait.pb.Visible = True
-        pleaseWait.pb.Maximum = tables.Rows.Count
+
         Dim getDBIDfromdbName As New Regex("([a-z0-9~]+)$")
         Dim dbidCollection As New Collection
 
         Dim i As Integer
         dbidToAppName.Clear()
         For i = 0 To tables.Rows.Count - 1
-            pleaseWait.pb.Value = i
             Application.DoEvents()
             dbName = tables.Rows(i)(2)
             applicationName = tables.Rows(i)(0)
@@ -205,9 +235,7 @@ Public Class archive
                 End If
             Next
         Next
-        pleaseWait.pb.Visible = False
         tvAppsTables.EndUpdate()
-        pleaseWait.pb.Value = 0
         If tvAppsTables.SelectedNode IsNot Nothing Then
             displayFields(tvAppsTables.SelectedNode.FullPath())
         End If
@@ -495,19 +523,14 @@ Public Class archive
         archive(True)
     End Sub
     Private Sub archive(ByVal countBytesOnly As Boolean)
-        Me.Cursor = Cursors.WaitCursor
-        pleaseWait.Show()
-        pleaseWait.Top = Me.Top + btnFields.Top
-        pleaseWait.Left = Me.Left + btnFields.Left
+
         If tvAppsTables.SelectedNode Is Nothing Then
-            pleaseWait.Close()
             MsgBox("Please choose a table for archiving.", MsgBoxStyle.OkOnly, AppName)
             tvAppsTables.Focus()
             Me.Cursor = Cursors.Default
             Exit Sub
         End If
         If lstArchiveFields.Items.Count = 0 Then
-            pleaseWait.Close()
             MsgBox("Please choose at least one field for archiving.", MsgBoxStyle.OkOnly, AppName)
             lstArchiveFields.Focus()
             Me.Cursor = Cursors.Default
@@ -524,7 +547,6 @@ Public Class archive
         End If
         Dim folderPath As String = txtBackupFolder.Text
         If folderPath = "" Then
-            pleaseWait.Close()
             MsgBox("Please choose a folder.", MsgBoxStyle.OkOnly, AppName)
             txtBackupFolder.Focus()
             Me.Cursor = Cursors.Default
@@ -532,7 +554,6 @@ Public Class archive
         End If
 
         If lstReports.SelectedIndex = -1 Then
-            pleaseWait.Close()
             MsgBox("Please choose a report.", MsgBoxStyle.OkOnly, AppName)
             lstReports.Focus()
             Me.Cursor = Cursors.Default
@@ -540,28 +561,76 @@ Public Class archive
         Else
             SaveSetting(AppName, "archive", "qid", getQidFromReportName(lstReports.Items(lstReports.SelectedIndex)))
         End If
-        Dim refFID As String = ""
+        Dim cnfg As New configuration
         Dim dbid As String = ""
-        Dim dbName As String = tvAppsTables.SelectedNode.FullPath().ToString()
+        cnfg.dbName = tvAppsTables.SelectedNode.FullPath().ToString()
+        cnfg.dbid = cnfg.dbName.Substring(cnfg.dbName.LastIndexOf(" ") + 1)
+        cnfg.countBytesOnly = countBytesOnly
+        cnfg.connectionstring = buildConnectionString("")
+        cnfg.report = lstReports.Items(lstReports.SelectedIndex)
+        cnfg.parentDBID = tvAppsTables.SelectedNode.Parent.Tag
+        Me.Cursor = Cursors.WaitCursor
+        Dim archiveThread As System.Threading.Thread = New Threading.Thread(AddressOf archiveTable)
+        archiveThread.Start(cnfg)
+    End Sub
+
+    Private Sub showProgress()
+        Try
+            Dim msg As String = " "
+            While msg.Length > 0
+                msg = Volatile.Read(progressMessage)
+                Volatile.Write(lastProgressMessage, msg)
+                SetLabelProgress(msg)
+                Threading.Thread.Sleep(500)
+            End While
+            SetLabelProgress("")
+            Me.Cursor = Cursors.Default
+        Catch ex As Exception
+            'Alert(ex.Message)
+        End Try
+    End Sub
+    Delegate Sub LabelDelegate(progressMessage As String)
+    Private Sub SetLabelProgress(ByVal progressMessage As String)
+
+        ' InvokeRequired required compares the thread ID of the  
+        ' calling thread to the thread ID of the creating thread.  
+        ' If these threads are different, it returns true.  
+        If Me.lblProgress.InvokeRequired Then
+            Dim d As New LabelDelegate(AddressOf SetLabelProgress)
+            Me.Invoke(d, New Object() {progressMessage})
+        Else
+            Me.lblProgress.Text = progressMessage
+        End If
+    End Sub
+    Sub archiveTable(cnfg As configuration)
+        Dim refFID As String = ""
         Dim i As Integer
-        dbid = dbName.Substring(dbName.LastIndexOf(" ") + 1)
         Dim archivedbid As String = ""
         Dim fileFID As String = ""
         Dim keyfid As String = "3"
         Dim keyFieldLabel As String = ""
 
-        Dim connectionString As String = buildConnectionString("")
-        Dim quNectConn As OdbcConnection = New OdbcConnection(connectionString)
+
+        Dim progressThread As System.Threading.Thread = New Threading.Thread(AddressOf showProgress)
+        Volatile.Write(progressMessage, "Initializing...")
+        progressThread.Start()
+
+
+        Dim quNectConn As OdbcConnection = New OdbcConnection(cnfg.connectionstring)
         quNectConn.Open()
         Dim quNectCmd As OdbcCommand = Nothing
-
+        Volatile.Write(progressMessage, "Fetching schema for " & cnfg.dbid)
         Dim dr As OdbcDataReader
         Try
-            quNectCmd = New OdbcCommand("SELECT COLUMN_NAME, fid, iskey FROM " & dbid & "~fields", quNectConn)
+            quNectCmd = New OdbcCommand("SELECT COLUMN_NAME, fid, iskey FROM " & cnfg.dbid & "~fields", quNectConn)
             dr = quNectCmd.ExecuteReader()
         Catch excpt As Exception
             If quNectCmd IsNot Nothing Then
                 quNectCmd.Dispose()
+            End If
+            Volatile.Write(progressMessage, "")
+            If Not automode Then
+                MsgBox(lastProgressMessage & " " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
             End If
             Exit Sub
         End Try
@@ -599,14 +668,13 @@ Public Class archive
 
         clistArray(clistArray.GetUpperBound(0)) = keyfid
         'now we need to get all the rids from the report
-        Dim qid As String = reportNameToQid(lstReports.Items(lstReports.SelectedIndex))
 
         Dim formulaDBID As String = "dbid()"
-        Dim parentDBID As String = tvAppsTables.SelectedNode.Parent.Tag
 
+        Volatile.Write(progressMessage, "Checking for existence of archive table.")
         'here we need to check to see if the backup table exists
         'we need to create an archive table
-        Dim archiveTableName As String = "QuNect Archive for " & dbid
+        Dim archiveTableName As String = "QuNect Archive for " & cnfg.dbid
         Dim archiveTableAlias As String = archiveTableName
         archiveTableAlias = archiveTableAlias.ToUpper()
         archiveTableAlias = Regex.Replace(archiveTableAlias, "[^A-Z0-9]", "_")
@@ -617,11 +685,15 @@ Public Class archive
             If quNectCmd IsNot Nothing Then
                 quNectCmd.Dispose()
             End If
-            quNectCmd = New OdbcCommand("SELECT * FROM " & parentDBID & "~aliases where Name = '" & archiveTableAlias.ToLower() & "'", quNectConn)
+            quNectCmd = New OdbcCommand("SELECT * FROM " & cnfg.parentDBID & "~aliases where Name = '" & archiveTableAlias.ToLower() & "'", quNectConn)
             dr = quNectCmd.ExecuteReader()
         Catch excpt As Exception
             If quNectCmd IsNot Nothing Then
                 quNectCmd.Dispose()
+            End If
+            Volatile.Write(progressMessage, "")
+            If Not automode Then
+                MsgBox(lastProgressMessage & " " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
             End If
             Exit Sub
         End Try
@@ -631,14 +703,15 @@ Public Class archive
             archivedbid = dr("Value")
         Else
             dr.Close()
-            If Not countBytesOnly Then
+            If Not cnfg.countBytesOnly Then
                 Try
+                    Volatile.Write(progressMessage, "Creating archive table.")
                     If quNectCmd IsNot Nothing Then
                         quNectCmd.Dispose()
                     End If
-                    Dim quNectCreateTableConn As OdbcConnection = New OdbcConnection(connectionString)
+                    Dim quNectCreateTableConn As OdbcConnection = New OdbcConnection(cnfg.connectionstring)
                     quNectCreateTableConn.Open()
-                    quNectCmd = New OdbcCommand("CREATE TABLE """ & archiveTableName & " " & parentDBID & """ (""CSV Archive"" longVarBinary)", quNectCreateTableConn)
+                    quNectCmd = New OdbcCommand("CREATE TABLE """ & archiveTableName & " " & cnfg.parentDBID & """ (""CSV Archive"" longVarBinary)", quNectCreateTableConn)
                     quNectCmd.ExecuteNonQuery()
                     quNectCmd = New OdbcCommand("SELECT @@newdbid", quNectCreateTableConn)
                     dr = quNectCmd.ExecuteReader()
@@ -650,35 +723,41 @@ Public Class archive
                     If quNectCmd IsNot Nothing Then
                         quNectCmd.Dispose()
                     End If
+                    Volatile.Write(progressMessage, "")
+                    If Not automode Then
+                        MsgBox(lastProgressMessage & " " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
+                    End If
                     Exit Sub
                 End Try
             End If
         End If
-
-        refFID = getRefFID(dbid, archiveTableAlias)
+        Volatile.Write(progressMessage, "Getting field identifier of reference field in table to be archived.")
+        refFID = getRefFID(cnfg.dbid, archiveTableAlias, cnfg.connectionstring)
         If refFID = "" Then
-            If Not countBytesOnly Then
+            If Not cnfg.countBytesOnly Then
+                Volatile.Write(progressMessage, "Creating reference field in table to be archived.")
                 If quNectCmd IsNot Nothing Then
                     quNectCmd.Dispose()
                 End If
-                Dim quNectAlterTableConn As OdbcConnection = New OdbcConnection(connectionString)
+                Dim quNectAlterTableConn As OdbcConnection = New OdbcConnection(cnfg.connectionstring)
                 quNectAlterTableConn.Open()
-                quNectCmd = New OdbcCommand("ALTER TABLE " & dbid & " ADD ""QuNect Archive Reference"" float", quNectAlterTableConn)
+                quNectCmd = New OdbcCommand("ALTER TABLE " & cnfg.dbid & " ADD ""QuNect Archive Reference"" float", quNectAlterTableConn)
                 quNectCmd.ExecuteNonQuery()
-                quNectCmd = New OdbcCommand("ALTER TABLE " & dbid & " ADD CONSTRAINT doesNotMatter FOREIGN KEY (""QuNect Archive Reference"") REFERENCES """ & archiveTableName & """ (fid" & keyfid & ") ", quNectAlterTableConn)
+                quNectCmd = New OdbcCommand("ALTER TABLE " & cnfg.dbid & " ADD CONSTRAINT doesNotMatter FOREIGN KEY (""QuNect Archive Reference"") REFERENCES """ & archiveTableName & """ (fid" & keyfid & ") ", quNectAlterTableConn)
                 quNectCmd.ExecuteNonQuery()
                 quNectAlterTableConn.Close()
                 'Now we need to get the brand new reffid
-                refFID = getRefFID(dbid, archiveTableAlias)
+                refFID = getRefFID(cnfg.dbid, archiveTableAlias, cnfg.connectionstring)
             End If
         End If
 
         Try
+            Volatile.Write(progressMessage, "Fetching list of record identifiers of records to be archived.")
             If quNectCmd IsNot Nothing Then
                 quNectCmd.Dispose()
             End If
             'here I should probably add a criteria to prevent archiving of records that were already archived
-            Dim sql As String = "SELECT fid3 FROM ""All Columns Please " & lstReports.Items(lstReports.SelectedIndex) & """"
+            Dim sql As String = "SELECT fid3 FROM ""All Columns Please " & cnfg.report & """"
             If refFID <> "" Then
                 sql &= " WHERE ""QuNect Archive Reference"" Is NULL"
             End If
@@ -688,71 +767,81 @@ Public Class archive
             If quNectCmd IsNot Nothing Then
                 quNectCmd.Dispose()
             End If
+            Volatile.Write(progressMessage, "")
+            If Not automode Then
+                MsgBox(lastProgressMessage & " " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
+            End If
             Exit Sub
         End Try
 
         Dim ridList As New List(Of Integer)()
+        Try
+            While dr.Read()
+                ridList.Add(dr(0))
+                Volatile.Write(progressMessage, "Fetching record identifier" & dr(0).ToString() & ".")
+            End While
+        Catch ex As Exception
+            If quNectCmd IsNot Nothing Then
+                quNectCmd.Dispose()
+            End If
+            Volatile.Write(progressMessage, "")
+            If Not automode Then
+                MsgBox(lastProgressMessage & " " & ex.Message(), MsgBoxStyle.OkOnly, AppName)
+            End If
+            Exit Sub
+        End Try
 
-        While dr.Read()
-            ridList.Add(dr(0))
-        End While
+        If Not cnfg.countBytesOnly Then
 
-
-
-
-        If Not countBytesOnly Then
-            Me.Cursor = Cursors.WaitCursor
-            connectionString = buildConnectionString("")
-
-            Dim quNectConnFIDs As OdbcConnection = New OdbcConnection(connectionString & ";usefids=1")
+            Dim quNectConnFIDs As OdbcConnection = New OdbcConnection(cnfg.connectionstring & ";usefids=1")
             Try
                 quNectConnFIDs.Open()
             Catch excpt As Exception
-                If Not automode Then
-                    MsgBox(excpt.Message(), MsgBoxStyle.OkOnly, AppName)
-                End If
                 quNectConnFIDs.Dispose()
-                Me.Cursor = Cursors.Default
-                pleaseWait.Close()
+                Volatile.Write(progressMessage, "")
+                If Not automode Then
+                    MsgBox(lastProgressMessage & " " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
+                End If
                 Exit Sub
             End Try
-            quNectConn = New OdbcConnection(connectionString)
+            quNectConn = New OdbcConnection(cnfg.connectionstring)
             Try
                 quNectConn.Open()
             Catch excpt As Exception
-                If Not automode Then
-                    MsgBox(excpt.Message(), MsgBoxStyle.OkOnly, AppName)
-                End If
                 quNectConnFIDs.Close()
                 quNectConnFIDs.Dispose()
                 quNectConn.Dispose()
-                Me.Cursor = Cursors.Default
-                pleaseWait.Close()
+                Volatile.Write(progressMessage, "")
+                If Not automode Then
+                    MsgBox(lastProgressMessage & " " & excpt.Message(), MsgBoxStyle.OkOnly, AppName)
+                End If
                 Exit Sub
             End Try
 
+            Volatile.Write(progressMessage, "Creating complete backup of table to be archived.")
 
-            If backupTable(dbName, dbid, quNectConn, quNectConnFIDs, ridList) = DialogResult.Cancel Then
-                MsgBox("Could Not backup table, canceling archive operation.", MsgBoxStyle.OkOnly, AppName)
+            If backupTable(cnfg.dbName, cnfg.dbid, quNectConn, quNectConnFIDs, ridList) = DialogResult.Cancel Then
                 quNectConn.Close()
                 quNectConn.Dispose()
                 quNectConnFIDs.Close()
                 quNectConnFIDs.Dispose()
-                Me.Cursor = Cursors.Default
-                pleaseWait.Close()
+                Volatile.Write(progressMessage, "")
+                If Not automode Then
+                    MsgBox("Could Not backup table, canceling archive operation.", MsgBoxStyle.OkOnly, AppName)
+                End If
                 Exit Sub
             End If
             quNectConnFIDs.Close()
             quNectConnFIDs.Dispose()
 
-
+            Volatile.Write(progressMessage, "Checking if archive table has a file attachment field")
             'now we need to check to see if the archive table has a file attachment field
             Try
                 If quNectCmd IsNot Nothing Then
                     quNectCmd.Dispose()
                 End If
                 quNectConn.Close()
-                quNectConn = New OdbcConnection(connectionString)
+                quNectConn = New OdbcConnection(cnfg.connectionstring)
                 quNectConn.Open()
                 Dim sql As String = "SELECT fid FROM " & archivedbid & "~fields WHERE field_type='file'"
 
@@ -771,12 +860,13 @@ Public Class archive
             End Try
 
             If fileFID = "" Then
+                Volatile.Write(progressMessage, "Adding file attachment field to archive table.")
                 Try
                     If quNectCmd IsNot Nothing Then
                         quNectCmd.Dispose()
                     End If
                     quNectConn.Close()
-                    quNectConn = New OdbcConnection(connectionString)
+                    quNectConn = New OdbcConnection(cnfg.connectionstring)
                     quNectConn.Open()
                     Dim sql As String = "ALTER TABLE " & archivedbid & "~fields ADD ""CSV Archive"" longVarBinary"
 
@@ -794,13 +884,14 @@ Public Class archive
             'now we need to check to see if the table to be archived has a restore button field
             Dim buttonFID As String = ""
             Try
+                Volatile.Write(progressMessage, "Checking to see if the table to be archived has a restore button.")
                 If quNectCmd IsNot Nothing Then
                     quNectCmd.Dispose()
                 End If
                 quNectConn.Close()
-                quNectConn = New OdbcConnection(connectionString)
+                quNectConn = New OdbcConnection(cnfg.connectionstring)
                 quNectConn.Open()
-                Dim sql As String = "SELECT fid FROM " & dbid & "~fields WHERE label='Retrieve from Archive'"
+                Dim sql As String = "SELECT fid FROM " & cnfg.dbid & "~fields WHERE label='Retrieve from Archive'"
 
                 quNectCmd = quNectConn.CreateCommand()
                 quNectCmd.CommandText = sql
@@ -813,19 +904,20 @@ Public Class archive
                 If quNectCmd IsNot Nothing Then
                     quNectCmd.Dispose()
                 End If
-                Throw New ArgumentException("could not access table to be archived " & dbid & " for button field information.")
+                Throw New ArgumentException("could not access table to be archived " & cnfg.dbid & " for button field information.")
             End Try
 
             If buttonFID = "" Then
 
                 Try
+                    Volatile.Write(progressMessage, "Adding table a restore button to table be archived.")
                     If quNectCmd IsNot Nothing Then
                         quNectCmd.Dispose()
                     End If
                     quNectConn.Close()
-                    quNectConn = New OdbcConnection(connectionString)
+                    quNectConn = New OdbcConnection(cnfg.connectionstring)
                     quNectConn.Open()
-                    Dim sql As String = "ALTER TABLE " & dbid & " ADD ""Retrieve from Archive"" formula_url (255)"
+                    Dim sql As String = "ALTER TABLE " & cnfg.dbid & " ADD ""Retrieve from Archive"" formula_url (255)"
 
                     quNectCmd = quNectConn.CreateCommand()
                     quNectCmd.CommandText = sql
@@ -834,7 +926,7 @@ Public Class archive
                     If quNectCmd IsNot Nothing Then
                         quNectCmd.Dispose()
                     End If
-                    Throw New ArgumentException("Could not add 'Retrieve from Archive' button field to table to be archived " & dbid & ".")
+                    Throw New ArgumentException("Could not add 'Retrieve from Archive' button field to table to be archived " & cnfg.dbid & ".")
                 End Try
                 'buttonFID = qdb.AddField(dbid, "Retrieve from Archive", "url", True)
             End If
@@ -850,9 +942,9 @@ Public Class archive
                     quNectCmd.Dispose()
                 End If
                 quNectConn.Close()
-                quNectConn = New OdbcConnection(connectionString)
+                quNectConn = New OdbcConnection(cnfg.connectionstring)
                 quNectConn.Open()
-                Dim sql As String = "UPDATE " & dbid & "~fields SET formula = '" & formula.Replace("'", "''") & "', appears_as = 'Retrieve from Archive' WHERE label = 'Retrieve from Archive'"
+                Dim sql As String = "UPDATE " & cnfg.dbid & "~fields SET formula = '" & formula.Replace("'", "''") & "', appears_as = 'Retrieve from Archive' WHERE label = 'Retrieve from Archive'"
 
                 quNectCmd = quNectConn.CreateCommand()
                 quNectCmd.CommandText = sql
@@ -869,9 +961,9 @@ Public Class archive
                     quNectCmd.Dispose()
                 End If
                 quNectConn.Close()
-                quNectConn = New OdbcConnection(connectionString)
+                quNectConn = New OdbcConnection(cnfg.connectionstring)
                 quNectConn.Open()
-                Dim sql As String = "INSERT INTO " & parentDBID & "~pages (Name, Value) Values ('QuNectArchive.html', '" & My.Resources.QuNectArchive.Replace("'", "''") & "')"
+                Dim sql As String = "INSERT INTO " & cnfg.parentDBID & "~pages (Name, Value) Values ('QuNectArchive.html', '" & My.Resources.QuNectArchive.Replace("'", "''") & "')"
 
                 quNectCmd = quNectConn.CreateCommand()
                 quNectCmd.CommandText = sql
@@ -880,26 +972,22 @@ Public Class archive
                 If quNectCmd IsNot Nothing Then
                     quNectCmd.Dispose()
                 End If
-                Throw New ArgumentException("Could not add JavaScript page 'QuNectArchive.html' to " & parentDBID & ".")
+                Throw New ArgumentException("Could not add JavaScript page 'QuNectArchive.html' to " & cnfg.parentDBID & ".")
             End Try
 
         End If
 
         Dim bytesArchived = 0
         Dim numArchived As Integer = 0
-        pleaseWait.pb.Value = 0
+
         Application.DoEvents()
-        pleaseWait.pb.Maximum = ridList.Count
+
         Dim xpathIndex As String = "2"
         If keyfid = "3" Then
             xpathIndex = "1"
         End If
         For i = 0 To ridList.Count - 1 Step recordsPerArchive
-            If i + recordsPerArchive > pleaseWait.pb.Maximum Then
-                pleaseWait.pb.Value = pleaseWait.pb.Maximum
-            Else
-                pleaseWait.pb.Value = i + recordsPerArchive
-            End If
+            Volatile.Write(progressMessage, "Processing " & i & " of " & ridList.Count & " records.")
             Application.DoEvents()
             Dim lowRid As Integer = i
             Dim highRid As Integer = i + recordsPerArchive - 1
@@ -921,12 +1009,12 @@ Public Class archive
             inRids &= ")"
 
             Dim strCSV As String = String.Join(",", clistArray) & vbCrLf
-            Dim genResultsTable = getCSVFromTable(dbid, clistArray, inRids, quNectConn)
+            Dim genResultsTable = getCSVFromTable(cnfg.dbid, clistArray, inRids, quNectConn)
             Dim bytes As Integer = genResultsTable.Length
             bytes -= (highRid - lowRid + 1) * (2 + (lstArchiveFields.Items.Count))
             bytesArchived += bytes
             strCSV &= genResultsTable
-            If Not countBytesOnly Then
+            If Not cnfg.countBytesOnly Then
                 'need to create a new record in the archive table
                 Dim sTempFileName As String = System.IO.Path.GetTempFileName()
                 Dim swTemp As New System.IO.StreamWriter(sTempFileName)
@@ -943,7 +1031,7 @@ Public Class archive
                 dr.Read()
                 Dim newArchiveRID As String = dr.GetString(0)
                 'now we need to hollow out the records and update the reference field value
-                Dim updateSQL As String = "UPDATE " & dbid & " SET "
+                Dim updateSQL As String = "UPDATE " & cnfg.dbid & " SET "
                 Dim archiveFieldCounter As Integer
                 comma = ""
                 For archiveFieldCounter = 0 To lstArchiveFields.Items.Count - 1
@@ -958,10 +1046,8 @@ Public Class archive
         Next
         quNectConn.Close()
         quNectConn.Dispose()
-
-        Me.Cursor = Cursors.Default
-        pleaseWait.Close()
-        If countBytesOnly Then
+        Volatile.Write(progressMessage, "")
+        If cnfg.countBytesOnly Then
             If ridList.Count > 0 Then
                 recordsPerArchive = 10000000 \ CInt(bytesArchived / ridList.Count)
                 If recordsPerArchive > 90 Then
@@ -977,8 +1063,8 @@ Public Class archive
         End If
 
     End Sub
-    Private Function getRefFID(dbid As String, dbidAlias As String) As String
-        Dim quNectConn As OdbcConnection = New OdbcConnection(buildConnectionString(""))
+    Private Function getRefFID(dbid As String, dbidAlias As String, connectionstring As String) As String
+        Dim quNectConn As OdbcConnection = New OdbcConnection(connectionstring)
         quNectConn.Open()
         Dim quNectCmd As OdbcCommand = Nothing
         Dim dr As OdbcDataReader
@@ -1061,7 +1147,7 @@ Public Class archive
         quickBaseSQL &= " WHERE fid3 IN ("
         Dim j As Integer
         For j = 0 To ridList.Count - 1 Step 100
-            Application.DoEvents()
+            Volatile.Write(progressMessage, "Backing up " & j & " of " & ridList.Count & " records.")
             Dim lowRid As Integer = j
             Dim highRid As Integer = j + 100 - 1
             If ridList.Count - 1 < j + 100 - 1 Then
@@ -1098,9 +1184,7 @@ Public Class archive
             End If
             objWriter.Write(vbCrLf)
             Dim k As Integer = 0
-            pleaseWait.pb.Maximum = 100
             While (dr.Read())
-                pleaseWait.pb.Value = k Mod 100
                 Application.DoEvents()
                 k += 1
                 For i = 0 To dr.FieldCount - 1
@@ -1136,9 +1220,7 @@ Public Class archive
         getCSVFromTable = "fid" & String.Join(", fid", clistArray) & vbCrLf
         Dim k As Integer = 0
         Dim i As Integer
-        pleaseWait.pb.Maximum = 100
         While (dr.Read())
-            pleaseWait.pb.Value = k Mod 100
             Application.DoEvents()
             k += 1
             Dim comma As String = ""
@@ -1214,5 +1296,7 @@ Public Class archive
     Private Sub txtBackupFolder_TextChanged(sender As Object, e As EventArgs) Handles txtBackupFolder.TextChanged
         showHideControls()
     End Sub
+
+
 End Class
 

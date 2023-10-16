@@ -39,31 +39,38 @@ function init()
                 if(that.jSelect && that.jSelect.val() != "")
                 {
                     var xml = that.qdb.DoQuery(that.NameValues.dbid, that.jSelect.val() + "AND" + makeQuery([that.NameValues.reffid, "XEX", ""]), makeClist([that.NameValues.keyfid, that.NameValues.reffid]));
+                    if (that.qdb.displayErrorAlert("Could not get record identifiers to archive "))
+                    {
+                        displayMessage();
+                        return;
+                        }
                     var records = qdb.selectNodes(xml, "/*/table/records/record");
                     if(!confirm("Are you sure you want to restore the " + records.length + " records in the report " + that.jSelect.find(":selected").text()))
-                        {
+                    {
+                        displayMessage();
                         return;
                         }
                     for(var i = 0; i < records.length; i++)
                     {
                         restoreFromArchive(getTextByFID(records[i], that.NameValues.reffid), getTextByFID(records[i], that.NameValues.keyfid));
+                        if (that.qdb.displayErrorAlert("Could not restore record number " + i + " in report " + that.jSelect.find(":selected").text()))
+                        {
+                            displayMessage();
+                            return;
+                        }
                     }
-                    alert("Your records have been restored!");
-                    history.back();
-                    return;
+                    window.setTimeout(function () { displayMessage("Your records have been restored!") }, 0);                 
                 }
                 else if(that.NameValues.filerid == "")
                 {
-                    alert("Your record has already been restored!");
-                    that.jDiv.dialog('close');
-                    return;
+                    window.setTimeout(function () { displayMessage("Your record has already been restored!") }, 0);
                 }
                 else
                 {
                     restoreFromArchive(that.NameValues.filerid, that.NameValues.key);
                     if(!that.qdb.displayErrorAlert("Could not restore from archive "))
                     {
-                        alert("Your record has been restored!");
+                        window.setTimeout(function () { displayMessage("Your record has been restored!")}, 0);
                     }
                 }
             }
@@ -71,8 +78,6 @@ function init()
             {
                 alert("If you're using Internet Explorer 10, try again with ActiveX filtering turned off.\nClick on the little icon in your address bar between the padlock icon and the refresh icon.");
             }
-        that.jDiv.dialog('close');
-        history.back();
         };
 
     var noButtonClick = function(e)
@@ -115,7 +120,7 @@ function init()
         autoOpen: true, 
         height: 200,
         width: 800, 
-        buttons:[{text:"Yes", click:yesButtonClick}, {text:"No", click:noButtonClick}]
+        buttons: [{ text: "Yes", click: function () { $("#msg").text("Please wait..."); window.setTimeout(yesButtonClick, 10) } }, {text:"No", click:noButtonClick}]
         });
     function restoreFromArchive(filerid, key)
     {
@@ -178,6 +183,16 @@ function init()
             numUpdated = that.qdb.ImportFromCSV(that.NameValues.dbid, makeCSVCells(csvArray[csvArrayRowNumber]), makeClist(csvArray[0]), rids, "0");
         }
     }
+
+    function displayMessage(msg) {
+        $("#msg").text("");
+        if (msg) {
+            window.setTimeout(function () { alert(msg); history.back(); }, 0);
+        return;
+        }
+        history.back();
+    }
+
     function checkInputParameters()
     {
         for(var i = 0; i < configParameters.length; i++)
@@ -1213,5 +1228,6 @@ $(init);
 </script>
 </head>
 <body>
+    <div id="msg"></div>
 </body>
 </html>
